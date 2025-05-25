@@ -6,62 +6,29 @@ class CoopGameLogic {
     }
 
     startGame(roomId, players) {
-	const gameData = {
-	    roomId: data.roomId,
-	    players: room.players,
-	    scene: {
-		title: "Утреннее пробуждение",
-		text: `Утренний свет пробивается сквозь тяжелые шторы княжеской спальни. 
-        
-        Княжна просыпается и видит рядом незнакомую девушку, очень похожую на неё. 
-        Девушка представляется сестрой и предлагает завтрак.
-        
-        💡 <strong>В комнате никого нет кроме вас двоих! Можно поменяться одеждой.</strong>`
-	    },
-	    choices: {
-		princess: [
-		    {
-			id: "princess_greet",
-			text: "Поприветствовать",
-			description: "Тепло поздороваться с 'сестрой'"
-		    },
-		    {
-			id: "princess_suspicious",
-			text: "Подозрительно осмотреться",
-			description: "Что-то кажется странным..."
-		    }
-		],
-		helper: [
-		    {
-			id: "helper_explain",
-			text: "Объяснить ситуацию",
-			description: "Рассказать про родителей и войну"
-		    },
-		    {
-			id: "helper_magic",
-			text: "Использовать магию",
-			description: "Активировать магические серьги"
-		    }
-		]
-	    },
-	    stats: {
+	const gameState = {
+            roomId: roomId,
+            players: players,
+            currentScene: 'coop_awakening',
+            turnOrder: 'princess', // чей ход
+            chapter: 1,
+            location: 'princess_chamber',
+            npcsPresent: [], // никого нет - можно менять одежду
+            stats: {
 		princess: {
-		    outfit: 'nightgown', // ночная рубашка
-		    loyalty: 50
+                    outfit: 'nightgown',
+                    loyalty: 50
 		},
 		helper: {
-		    outfit: 'common_dress', // простое платье  
-		    trustLevel: 75
+                    outfit: 'common_dress',
+                    trustLevel: 75
 		}
-	    },
-	    currentTurn: 'princess',
-	    chapter: 1,
-	    location: 'princess_chamber',
-	    npcsPresent: [] // никого нет - можно менять одежду
+            },
+            flags: {}
 	};
 
-        this.games.set(roomId, gameState);
-        return this.getGameData(roomId);
+	this.games.set(roomId, gameState);
+	return this.getGameData(roomId);
     }
 
     makeChoice(roomId, playerId, choiceId, character) {

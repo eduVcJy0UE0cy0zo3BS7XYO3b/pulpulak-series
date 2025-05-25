@@ -210,13 +210,16 @@
 }
 
 .outfit-switch-btn {
-    background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%) !important;
+    background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%) !important;
     border: 2px solid #ff6b9d !important;
+    color: #8b0000 !important;
+    font-weight: bold !important;
 }
 
 .outfit-switch-btn:hover {
-    background: linear-gradient(45deg, #ff6b9d 0%, #ff9a9e 50%, #fecfef 100%) !important;
+    background: linear-gradient(45deg, #ff6b9d 0%, #ff9a9e 100%) !important;
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 107, 157, 0.3);
 }
 
 #princess-status, #helper-status {

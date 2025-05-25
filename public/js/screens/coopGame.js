@@ -191,31 +191,6 @@ class CoopGame {
 	const button = document.createElement('button');
 	button.className = 'choice-button';
 	
-	if (choice.isOutfitChange) {
-            button.classList.add('outfit-switch-btn');
-	}
-	
-	button.innerHTML = `
-        <strong>${choice.text}</strong><br>
-        <small>${choice.description}</small>
-    `;
-	
-	button.addEventListener('click', () => {
-            this.makeChoice(choice.id, character);
-	});
-	
-	if (choice.disabled) {
-            button.disabled = true;
-            button.innerHTML += `<br><small style="color: #dc3545;">🚫 ${choice.reason}</small>`;
-	}
-	
-	return button;
-    }
-
-    createChoiceButton(choice, character) {
-	const button = document.createElement('button');
-	button.className = 'choice-button';
-	
 	// Особое оформление для смены одежды
 	if (choice.id === 'switch_outfits') {
             button.classList.add('outfit-switch-btn');
