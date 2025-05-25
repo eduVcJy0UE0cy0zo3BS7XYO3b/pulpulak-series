@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Игра в прятки</title>
+    <style>
+      body { 
+          font-family: Arial, sans-serif; 
+          max-width: 800px; 
+          margin: 20px auto; 
+          padding: 20px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          min-height: 100vh;
+      }
+      .container { 
+          background: rgba(255,255,255,0.95); 
+          color: #333;
+          padding: 30px; 
+          border-radius: 15px; 
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      }
+      h1 {
+          text-align: center;
+          color: #4a5568;
+          margin-bottom: 30px;
+      }
+      
+      /* Стили для меню */
+      .menu-container {
+          text-align: center;
+      }
+      button { 
+          padding: 15px 25px; 
+          margin: 15px; 
+          font-size: 16px; 
+          cursor: pointer;
+          border: none;
+          border-radius: 10px;
+          background: #007bff;
+          color: white;
+          transition: all 0.3s;
+      }
+      button:hover { 
+          background: #0056b3; 
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+      }
+      input { 
+          padding: 12px; 
+          margin: 10px; 
+          font-size: 16px; 
+          border: 2px solid #ddd;
+          border-radius: 8px;
+          width: 200px;
+          text-align: center;
+      }
+      #roomId { 
+          background: #e9ecef; 
+          padding: 15px; 
+          border-radius: 10px; 
+          margin: 15px 0;
+          font-family: monospace;
+          font-size: 20px;
+          font-weight: bold;
+          letter-spacing: 2px;
+          border: 2px dashed #007bff;
+      }
+      
+      /* Стили для игры */
+      .role-badge {
+          display: inline-block;
+          padding: 8px 15px;
+          border-radius: 20px;
+          font-weight: bold;
+          margin-bottom: 20px;
+      }
+      .seeker { background: #ffd89b; color: #8b4513; }
+      .hider { background: #a8edea; color: #2d3748; }
+      
+      .message { 
+          font-size: 18px; 
+          line-height: 1.6; 
+          margin-bottom: 30px;
+          padding: 20px;
+          background: #f8f9fa;
+          border-radius: 10px;
+          border-left: 5px solid #007bff;
+      }
+      .location-btn { 
+          display: block;
+          width: 100%;
+          padding: 15px; 
+          margin: 10px 0; 
+          font-size: 16px; 
+          cursor: pointer;
+          border: 2px solid #007bff;
+          border-radius: 10px;
+          background: white;
+          color: #007bff;
+          transition: all 0.3s;
+          text-align: left;
+      }
+      .location-btn:hover { 
+          background: #007bff; 
+          color: white; 
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+      }
+      .location-btn:disabled {
+          background: #6c757d;
+          border-color: #6c757d;
+          color: white;
+          cursor: not-allowed;
+          transform: none;
+      }
+      .searched {
+          background: #ffc107 !important;
+          border-color: #ffc107 !important;
+          color: #856404 !important;
+      }
+      .game-stats { 
+          margin: 20px 0; 
+          padding: 15px; 
+          background: #e9ecef; 
+          border-radius: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      }
+      .result-winner {
+          text-align: center;
+          font-size: 24px;
+          padding: 30px;
+          margin: 20px 0;
+          border-radius: 15px;
+          font-weight: bold;
+      }
+      .seeker-wins { background: #d4edda; color: #155724; }
+      .hider-wins { background: #cce5ff; color: #004085; }
+      
+      .play-again-btn {
+          display: block;
+          margin: 20px auto;
+          padding: 15px 30px;
+          font-size: 18px;
+          background: #28a745;
+          color: white;
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.3s;
+      }
+      .play-again-btn:hover {
+          background: #218838;
+          transform: translateY(-2px);
+      }
+      
+      /* Утилиты */
+      .hidden { display: none !important; }
+      .waiting-animation {
+          display: inline-block;
+          animation: pulse 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes pulse {
+          from { opacity: 0.6; }
+          to { opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎮 Игра в прятки</h1>
+      
+      <!-- Главное меню -->
+      <div id="menu" class="menu-container">
+        <h2>Выберите действие:</h2>
+        <button onclick="createRoom()">🆕 Создать новую игру</button>
+        <br>
+        <input type="text" id="roomInput" placeholder="Введите ID комнаты" maxlength="10">
+        <br>
+        <button onclick="joinRoom()">🔗 Присоединиться к игре</button>
+      </div>
+
+      <!-- Ожидание игроков -->
+      <div id="waiting" class="menu-container hidden">
+        <h2>🎉 Игра создана!</h2>
+        <p>Отправьте этот ID второму игроку:</p>
+        <div id="roomId"></div>
+        <p class="waiting-animation">⏳ Ожидание второго игрока...</p>
+      </div>
+      
+      <!-- Игровой экран -->
+      <div id="game" class="hidden">
+        <div class="game-stats">
+          <strong>Комната: <span id="roomInfo">-</span></strong>
+          <strong>Игроков: <span id="playerCount">0</span></strong>
+        </div>
+
+        <div id="roleInfo" style="text-align: center; margin-bottom: 20px;"></div>
+
+        <div class="message" id="message">
+          Подключение к игре...
+        </div>
+
+        <div id="locations"></div>
+        <div id="gameResult"></div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      let currentRole = null;
+      let currentRoomId = null;
+
+      // Элементы интерфейса
+      const menuEl = document.getElementById('menu');
+      const waitingEl = document.getElementById('waiting');
+      const gameEl = document.getElementById('game');
+
+      function showScreen(screenName) {
+          menuEl.classList.add('hidden');
+          waitingEl.classList.add('hidden');
+          gameEl.classList.add('hidden');
+          
+          switch(screenName) {
+          case 'menu':
+              menuEl.classList.remove('hidden');
+              break;
+          case 'waiting':
+              waitingEl.classList.remove('hidden');
+              break;
+          case 'game':
+              gameEl.classList.remove('hidden');
+              break;
+          }
+      }
+
+      function createRoom() {
+          console.log('Создаем комнату...');
+          socket.emit('create-room');
+      }
+
+      function joinRoom() {
+          const roomId = document.getElementById('roomInput').value.trim();
+          if (roomId) {
+              console.log('Присоединяемся к комнате:', roomId);
+              currentRoomId = roomId;
+              socket.emit('join-room', roomId);
+          } else {
+              alert('Введите ID комнаты!');
+          }
+      }
+
+      // Обработка нажатия Enter в поле ввода
+      document.getElementById('roomInput').addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+              joinRoom();
+          }
+      });
+
+      socket.on('room-created', (roomId) => {
+          console.log('Комната создана:', roomId);
+          currentRoomId = roomId;
+          document.getElementById('roomId').textContent = roomId;
+          document.getElementById('roomInfo').textContent = roomId;
+          showScreen('waiting');
+      });
+
+      socket.on('game-update', (data) => {
+          console.log('Получено обновление игры:', data);
+          
+          if (data.playerCount) {
+              document.getElementById('playerCount').textContent = data.playerCount;
+          }
+
+          // Если игра началась - переходим к игровому экрану
+          if (data.role) {
+              currentRole = data.role;
+              showScreen('game');
+              
+              // Показываем роль
+              const roleInfo = document.getElementById('roleInfo');
+              if (data.role === 'seeker') {
+                  roleInfo.innerHTML = '<span class="role-badge seeker">🔍 ВЫ ИЩУЩИЙ</span>';
+              } else {
+                  roleInfo.innerHTML = '<span class="role-badge hider">🙈 ВЫ ПРЯЧУЩИЙСЯ</span>';
+              }
+          }
+
+          document.getElementById('message').textContent = data.message;
+
+          const locationsDiv = document.getElementById('locations');
+          locationsDiv.innerHTML = '';
+
+          // Показываем локации для выбора
+          if (data.locations) {
+              data.locations.forEach(location => {
+                  const button = document.createElement('button');
+                  button.className = 'location-btn';
+                  button.innerHTML = `${location.name}<br><small>${location.description}</small>`;
+                  
+                  if (data.gameState === 'hiding') {
+                      button.onclick = () => hideInLocation(location.id);
+                  } else if (data.gameState === 'seeking') {
+                      if (data.searchedLocations && data.searchedLocations.includes(location.id)) {
+                          button.classList.add('searched');
+                          button.disabled = true;
+                      } else {
+                          button.onclick = () => searchLocation(location.id);
+                      }
+                  }
+                  
+                  locationsDiv.appendChild(button);
+              });
+          }
+
+          // Показываем статистику попыток
+          if (data.attempts !== undefined && data.maxAttempts) {
+              const stats = document.createElement('div');
+              stats.className = 'game-stats';
+              stats.innerHTML = `<strong>Попытки: ${data.attempts}/${data.maxAttempts}</strong>`;
+              locationsDiv.appendChild(stats);
+          }
+
+          // Показываем результат игры
+          const resultDiv = document.getElementById('gameResult');
+          if (data.gameState === 'finished') {
+              let resultClass = data.result === 'seeker_wins' ? 'seeker-wins' : 'hider-wins';
+              let resultIcon = data.result === 'seeker_wins' ? '🎯' : '😎';
+              
+              resultDiv.innerHTML = `
+                    <div class="result-winner ${resultClass}">
+                        ${resultIcon} ${data.message}
+                    </div>
+                    <button class="play-again-btn" onclick="playAgain()">
+                        🔄 Играть еще раз
+                    </button>
+                    <button class="play-again-btn" onclick="backToMenu()" style="background: #6c757d;">
+                        🏠 В главное меню
+                    </button>
+                `;
+              locationsDiv.innerHTML = '';
+          } else {
+              resultDiv.innerHTML = '';
+          }
+      });
+
+      socket.on('error', (message) => {
+          console.error('Ошибка:', message);
+          alert(`Ошибка: ${message}`);
+      });
+
+      function hideInLocation(locationId) {
+          socket.emit('hide-in-location', { locationId });
+      }
+
+      function searchLocation(locationId) {
+          socket.emit('search-location', { locationId });
+      }
+
+      function playAgain() {
+          socket.emit('play-again');
+      }
+
+      function backToMenu() {
+          currentRoomId = null;
+          currentRole = null;
+          showScreen('menu');
+          document.getElementById('roomInput').value = '';
+      }
+
+      // Начинаем с главного меню
+      showScreen('menu');
+		       </script>
+  </body>
+</html>
