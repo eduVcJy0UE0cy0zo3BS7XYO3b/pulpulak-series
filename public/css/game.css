@@ -197,3 +197,96 @@
         gap: 10px;
     }
 }
+
+/* Добавляем в существующий файл */
+
+.location-info {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(139, 69, 19, 0.1);
+    border-radius: 5px;
+    font-size: 14px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.outfit-switch-btn {
+    background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%) !important;
+    border: 2px solid #ff6b9d !important;
+}
+
+.outfit-switch-btn:hover {
+    background: linear-gradient(45deg, #ff6b9d 0%, #ff9a9e 50%, #fecfef 100%) !important;
+    transform: translateY(-2px);
+}
+
+#princess-status, #helper-status {
+    background: rgba(255, 255, 255, 0.3);
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.special-actions-header {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    margin: 10px 0 5px 0;
+    font-style: italic;
+}
+
+.choices-separator {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin: 15px 0 10px 0;
+    font-style: italic;
+}
+
+.outfit-switch-btn {
+    background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%) !important;
+    border: 2px solid #ff6b9d !important;
+    margin: 5px 0 !important;
+}
+
+.outfit-switch-btn:hover {
+    background: linear-gradient(45deg, #ff6b9d 0%, #ff9a9e 50%, #fecfef 100%) !important;
+    transform: translateY(-2px);
+}
+
+.waiting-turn {
+    text-align: center;
+    font-style: italic;
+    color: #666;
+    padding: 10px;
+    margin-top: 10px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 5px;
+}
+
+.other-player-actions {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    margin: 5px 0;
+    font-style: italic;
+}
+
+.outfit-switch-btn {
+    background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%) !important;
+    border: 2px solid #ff6b9d !important;
+    color: #8b0000 !important;
+    font-weight: bold !important;
+}
+
+.outfit-switch-btn:hover {
+    background: linear-gradient(45deg, #ff6b9d 0%, #ff9a9e 100%) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 107, 157, 0.3);
+}
+
+.outfit-switch-btn:disabled {
+    opacity: 0.6;
+    transform: none;
+    cursor: not-allowed;
+}

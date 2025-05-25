@@ -78,6 +78,9 @@ class CoopGame {
         this.element.querySelector('#scene-title').textContent = data.scene.title;
         this.element.querySelector('#story-text').innerHTML = data.scene.text;
 
+        // Обновляем информацию о локации
+        this.updateLocationInfo(data);
+
         // Обновляем информацию о игроках
         this.updatePlayersInfo(data);
 
@@ -86,65 +89,153 @@ class CoopGame {
         this.updateCharacterChoices('helper', data.choices.helper);
     }
 
+    updateLocationInfo(data) {
+        const locationNames = {
+            'princess_chamber': 'Спальня княжны',
+            'throne_room': 'Тронный зал',
+            'kitchen': 'Кухня',
+            'garden': 'Сад',
+            'armory': 'Арсенал'
+        };
+
+        this.element.querySelector('#current-location').textContent = 
+            locationNames[data.location] || data.location;
+
+        const npcsElement = this.element.querySelector('#npcs-present');
+        if (data.npcsPresent && data.npcsPresent.length > 0) {
+            npcsElement.innerHTML = `<br>👥 <em>Присутствуют: ${data.npcsPresent.join(', ')}</em>`;
+        } else {
+            npcsElement.innerHTML = `<br>🤫 <em>Никого нет поблизости</em>`;
+        }
+    }
+
     updatePlayersInfo(data) {
         // Информация о княжне
         this.element.querySelector('#princess-player').textContent = 
             data.players.princess?.name || '-';
         this.element.querySelector('#princess-outfit').textContent = 
-            data.stats.princess.outfit;
-        this.element.querySelector('#princess-awareness').textContent = 
-            data.stats.princess.awareness;
+            this.getOutfitName(data.stats.princess.outfit);
+        this.element.querySelector('#princess-loyalty').textContent = 
+            data.stats.princess.loyalty;
 
         // Информация о помощнице
         this.element.querySelector('#helper-player').textContent = 
             data.players.helper?.name || '-';
-        this.element.querySelector('#helper-influence').textContent = 
-            data.stats.helper.influence;
+        this.element.querySelector('#helper-outfit').textContent = 
+            this.getOutfitName(data.stats.helper.outfit);
+        this.element.querySelector('#helper-trust').textContent = 
+            data.stats.helper.trustLevel;
+    }
+
+    getOutfitName(outfitId) {
+        const outfitNames = {
+            'nightgown': 'Ночная рубашка',
+            'princess_dress': 'Княжеское платье',
+            'common_dress': 'Простое платье',
+            'court_dress': 'Придворное платье'
+        };
+        return outfitNames[outfitId] || outfitId;
     }
 
     updateCharacterChoices(character, choices) {
-        const choicesDiv = this.element.querySelector(`#${character}-choices`);
-        choicesDiv.innerHTML = '';
+	const choicesDiv = this.element.querySelector(`#${character}-choices`);
+	choicesDiv.innerHTML = '';
 
-        const isMyTurn = this.playerRole === character;
-        const hasChoices = choices && choices.length > 0;
+	const isMyRole = this.playerRole === character;
+	const hasChoices = choices && choices.length > 0;
 
-        if (!isMyTurn) {
-            choicesDiv.innerHTML = '<div class="waiting-turn">Ждите хода другого игрока...</div>';
-            return;
-        }
-
-        if (!hasChoices) {
-            choicesDiv.innerHTML = '<div class="waiting-turn">Ожидание развития сюжета...</div>';
-            return;
-        }
-
-        // Индикатор хода
-        const turnIndicator = document.createElement('div');
-        turnIndicator.className = 'turn-indicator';
-        turnIndicator.textContent = '🎯 Ваш ход!';
-        choicesDiv.appendChild(turnIndicator);
-
-        // Кнопки выборов
-        choices.forEach(choice => {
-            const button = document.createElement('button');
-            button.className = 'choice-button';
-            button.innerHTML = `
-                <strong>${choice.text}</strong><br>
-                <small>${choice.description}</small>
-            `;
-            
-            button.addEventListener('click', () => {
-                this.makeChoice(choice.id, character);
-            });
-            
-            if (choice.disabled) {
-                button.disabled = true;
-                button.innerHTML += `<br><small style="color: #dc3545;">🚫 ${choice.reason}</small>`;
+	if (!isMyRole) {
+            if (hasChoices) {
+		// Показываем только действия смены одежды для "не моего" персонажа
+		const outfitChoices = choices.filter(choice => choice.isOutfitChange);
+		if (outfitChoices.length > 0) {
+                    const header = document.createElement('div');
+                    header.className = 'other-player-actions';
+                    header.textContent = '🔄 Можете предложить:';
+                    choicesDiv.appendChild(header);
+                    
+                    outfitChoices.forEach(choice => {
+			const button = this.createChoiceButton(choice, character);
+			choicesDiv.appendChild(button);
+                    });
+		}
             }
             
+            const waitingDiv = document.createElement('div');
+            waitingDiv.className = 'waiting-turn';
+            waitingDiv.textContent = 'Ход другого игрока...';
+            choicesDiv.appendChild(waitingDiv);
+            return;
+	}
+
+	// Это мой персонаж
+	if (!hasChoices) {
+            choicesDiv.innerHTML = '<div class="waiting-turn">Ожидание развития сюжета...</div>';
+            return;
+	}
+
+	// Индикатор хода
+	const turnIndicator = document.createElement('div');
+	turnIndicator.className = 'turn-indicator';
+	turnIndicator.textContent = '🎯 Ваш ход!';
+	choicesDiv.appendChild(turnIndicator);
+
+	// Все доступные действия
+	choices.forEach(choice => {
+            const button = this.createChoiceButton(choice, character);
             choicesDiv.appendChild(button);
-        });
+	});
+    }
+
+    createChoiceButton(choice, character) {
+	const button = document.createElement('button');
+	button.className = 'choice-button';
+	
+	if (choice.isOutfitChange) {
+            button.classList.add('outfit-switch-btn');
+	}
+	
+	button.innerHTML = `
+        <strong>${choice.text}</strong><br>
+        <small>${choice.description}</small>
+    `;
+	
+	button.addEventListener('click', () => {
+            this.makeChoice(choice.id, character);
+	});
+	
+	if (choice.disabled) {
+            button.disabled = true;
+            button.innerHTML += `<br><small style="color: #dc3545;">🚫 ${choice.reason}</small>`;
+	}
+	
+	return button;
+    }
+
+    createChoiceButton(choice, character) {
+	const button = document.createElement('button');
+	button.className = 'choice-button';
+	
+	// Особое оформление для смены одежды
+	if (choice.id === 'switch_outfits') {
+            button.classList.add('outfit-switch-btn');
+	}
+	
+	button.innerHTML = `
+        <strong>${choice.text}</strong><br>
+        <small>${choice.description}</small>
+    `;
+	
+	button.addEventListener('click', () => {
+            this.makeChoice(choice.id, character);
+	});
+	
+	if (choice.disabled) {
+            button.disabled = true;
+            button.innerHTML += `<br><small style="color: #dc3545;">🚫 ${choice.reason}</small>`;
+	}
+	
+	return button;
     }
 
     makeChoice(choiceId, character) {

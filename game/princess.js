@@ -7,7 +7,6 @@ class Princess {
         this.personality = "веселая и эрудированная";
         this.currentOutfit = "nightgown"; // ночная рубашка
         this.inventory = [];
-        this.awareness = 0; // понимание ситуации (0-100)
         this.location = "princess_chamber";
     }
 
@@ -23,8 +22,12 @@ class Princess {
         this.currentOutfit = outfit;
     }
 
-    increaseAwareness(amount) {
-        this.awareness = Math.min(100, this.awareness + amount);
+    increaseLoyalty(amount) {
+        this.loyalty = Math.min(100, this.loyalty + amount);
+    }
+
+    decreaseLoyalty(amount) {
+        this.loyalty = Math.max(0, this.loyalty - amount);
     }
 }
 
@@ -32,12 +35,26 @@ class WitchHelper {
     constructor() {
         this.name = "Младшая сестра"; // притворяется сестрой
         this.disguise = "sister";
-        this.currentOutfit = "common_dress";
+        this.currentOutfit = "common_dress"; // простое платье
         this.magicalItems = ["translation_earrings", "voice_medallion"];
+        this.secretsKnown = ['parents_dead', 'magic_items'];
+        this.trustLevel = 75; // доверие княжны к ней
+    }
+
+    changeOutfit(outfit) {
+        this.currentOutfit = outfit;
     }
 
     canSwitchOutfits() {
         return true; // может меняться одеждой с княжной
+    }
+
+    increaseTrust(amount) {
+        this.trustLevel = Math.min(100, this.trustLevel + amount);
+    }
+
+    decreaseTrust(amount) {
+        this.trustLevel = Math.max(0, this.trustLevel - amount);
     }
 }
 
