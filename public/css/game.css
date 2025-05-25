@@ -1,0 +1,199 @@
+/* Лобби */
+.lobby-container {
+    background: rgba(244, 241, 232, 0.95);
+    color: var(--text-dark);
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+}
+
+.room-id-display {
+    background: #e9ecef;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+    font-family: monospace;
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 3px;
+    border: 2px dashed #007bff;
+    text-align: center;
+    user-select: all;
+}
+
+.player-card {
+    background: rgba(139, 69, 19, 0.2);
+    border: 2px solid var(--primary-dark);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.player-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.player-role {
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.role-princess { background: #ffcccb; color: #8b0000; }
+.role-helper { background: #e0f2e7; color: #155724; }
+.role-waiting { background: #e2e3e5; color: #495057; }
+
+/* Игровые панели */
+.dual-player-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.player-panel {
+    background: rgba(244, 241, 232, 0.95);
+    color: var(--text-dark);
+    padding: 20px;
+    border-radius: 10px;
+    border: 3px solid;
+}
+
+.panel-princess { border-color: #ffcccb; }
+.panel-helper { border-color: #e0f2e7; }
+
+.player-panel h3 {
+    margin-top: 0;
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.choice-button {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    background: var(--primary-color);
+    color: var(--text-dark);
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: bold;
+    text-align: left;
+}
+
+.choice-button:hover {
+    background: #ffd700;
+    transform: translateY(-1px);
+}
+
+.choice-button:disabled {
+    background: #6c757d;
+    color: #e9ecef;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.waiting-turn {
+    text-align: center;
+    font-style: italic;
+    color: #666;
+    padding: 20px;
+}
+
+.turn-indicator {
+    background: var(--success-color);
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+/* Чат */
+.chat-section {
+    background: rgba(244, 241, 232, 0.9);
+    color: var(--text-dark);
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.chat-messages {
+    height: 120px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    border: 1px solid var(--primary-dark);
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+}
+
+.chat-input-container {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--primary-dark);
+    border-radius: 4px;
+}
+
+.chat-send {
+    padding: 8px 15px;
+    background: var(--primary-dark);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.chat-send:hover {
+    background: var(--primary-color);
+    color: var(--text-dark);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .dual-player-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .btn-large {
+        width: 100%;
+    }
+    
+    .game-container {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    .player-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+}

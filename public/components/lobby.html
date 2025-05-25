@@ -1,0 +1,23 @@
+<div id="lobby-screen" class="fade-in">
+  <button class="btn btn-secondary mb-2" data-action="back-to-menu">← В главное меню</button>
+  
+  <div class="lobby-container">
+    <h2 class="text-center">🏰 Лобби игры</h2>
+    
+    <div id="room-info" class="text-center">
+      <p>Поделитесь этим кодом с другом:</p>
+      <div class="room-id-display" id="room-id-display">ABCD</div>
+    </div>
+
+    <div id="players-list">
+      <!-- Карточки игроков будут добавлены динамически -->
+    </div>
+
+    <div id="lobby-controls" class="text-center mt-2">
+      <button class="btn btn-primary btn-large" id="start-game-btn" data-action="start-coop-game" disabled>
+        ▶️ Начать игру
+      </button>
+      <p class="waiting-text"><em>Ожидание второго игрока...</em></p>
+    </div>
+  </div>
+</div>

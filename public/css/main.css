@@ -1,0 +1,79 @@
+/* Основные стили и переменные */
+:root {
+    --primary-color: #daa520;
+    --primary-dark: #8b4513;
+    --background-dark: #2c1810;
+    --text-light: #f4f1e8;
+    --text-dark: #2c1810;
+    --success-color: #28a745;
+    --error-color: #dc3545;
+    --warning-color: #ffc107;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Georgia', serif;
+    margin: 0;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--background-dark) 0%, var(--primary-dark) 50%, var(--primary-color) 100%);
+    color: var(--text-light);
+    min-height: 100vh;
+}
+
+.game-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: rgba(139, 69, 19, 0.9);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border: 3px solid var(--primary-color);
+}
+
+.game-title {
+    text-align: center;
+    font-size: 2.5em;
+    color: var(--primary-color);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    text-align: center;
+    font-style: italic;
+    margin-bottom: 30px;
+    opacity: 0.9;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.loading {
+    text-align: center;
+    color: var(--primary-color);
+    font-style: italic;
+}
+
+/* Анимации */
+@keyframes pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+.waiting-animation {
+    display: inline-block;
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
