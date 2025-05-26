@@ -13,7 +13,7 @@ class CoopGameLogic {
             turnOrder: 'princess',
             chapter: 1,
             location: 'princess_chamber',
-            npcsPresent: [], // Изначально наедине
+            npcsPresent: [], 
             stats: {
 		princess: {
                     outfit: 'nightgown',
@@ -27,10 +27,16 @@ class CoopGameLogic {
             flags: {}
 	};
 
-	// Явно устанавливаем NPCs для начальной локации
+	// Обновляем NPCs для локации
 	gameState.npcsPresent = this.getNPCsForLocation(gameState.location);
 
 	this.games.set(roomId, gameState);
+	
+	console.log('🎮 Игра создана с состоянием:', {
+            stats: gameState.stats,
+            helperOutfit: gameState.stats.helper.outfit
+	});
+	
 	return this.getGameData(roomId);
     }
 
@@ -196,6 +202,9 @@ class CoopGameLogic {
 
 	const sceneData = CoopStoryData.getScene(gameState.currentScene);
 	
+	// Создаем глубокую копию stats
+	const deepCopyStats = JSON.parse(JSON.stringify(gameState.stats));
+	
 	const gameData = {
             roomId: roomId,
             players: gameState.players,
@@ -207,18 +216,19 @@ class CoopGameLogic {
 		princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
 		helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
             },
-            stats: gameState.stats, // ← Убедимся что stats копируются правильно
+            stats: deepCopyStats, // Используем глубокую копию
             currentTurn: gameState.turnOrder,
             chapter: gameState.chapter,
             location: gameState.location,
             npcsPresent: gameState.npcsPresent
 	};
 
-	// Добавим отладку
-	console.log('📊 getGameData stats:', {
+	// Добавляем отладочную информацию
+	console.log('📊 getGameData создал данные:', {
             original: gameState.stats,
-            returned: gameData.stats,
-            helperOutfit: gameData.stats?.helper?.outfit
+            copied: deepCopyStats,
+            helperOutfit: deepCopyStats?.helper?.outfit,
+            princessOutfit: deepCopyStats?.princess?.outfit
 	});
 
 	return gameData;

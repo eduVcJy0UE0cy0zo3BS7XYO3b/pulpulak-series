@@ -112,7 +112,11 @@ class CoopGame {
     }
 
     updatePlayersInfo(data) {
-	console.log('🎭 Обновление информации о игроках:', data.stats);
+	console.log('🎭 Полученные данные на клиенте:', {
+            stats: data.stats,
+            helperStats: data.stats.helper,
+            princessStats: data.stats.princess
+	});
 
 	// Информация о княжне
 	this.element.querySelector('#princess-player').textContent = 
@@ -122,12 +126,12 @@ class CoopGame {
 	this.element.querySelector('#princess-loyalty').textContent = 
             data.stats.princess?.loyalty || 50;
 
-	// Информация о помощнице с проверкой
+	// Информация о помощнице
 	this.element.querySelector('#helper-player').textContent = 
             data.players.helper?.name || '-';
 	
 	const helperOutfit = data.stats.helper?.outfit;
-	console.log('👗 Наряд помощницы:', helperOutfit);
+	console.log('👗 Обновление наряда помощницы:', helperOutfit);
 	
 	this.element.querySelector('#helper-outfit').textContent = 
             this.getOutfitName(helperOutfit || 'common_dress');
