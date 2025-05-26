@@ -16,20 +16,16 @@ class CoopGameLogic {
             npcsPresent: [], 
             stats: {
 		princess: {
-                    outfit: 'nightgown',
-                    loyalty: 50
+                    outfit: 'nightgown'
 		},
 		helper: {
-                    outfit: 'common_dress',
-                    trustLevel: 75
+                    outfit: 'common_dress'
 		}
             },
             flags: {}
 	};
 
-	// Обновляем NPCs для локации
 	gameState.npcsPresent = this.getNPCsForLocation(gameState.location);
-
 	this.games.set(roomId, gameState);
 	
 	console.log('🎮 Игра создана с состоянием:', {
@@ -39,7 +35,7 @@ class CoopGameLogic {
 	
 	return this.getGameData(roomId);
     }
-
+    
     makeChoice(roomId, playerId, choiceId, character) {
         const gameState = this.games.get(roomId);
         if (!gameState) {
@@ -110,16 +106,9 @@ class CoopGameLogic {
             };
 	}
 
-	// Меняем наряды местами используя деструктуризацию
+	// Меняем наряды местами
 	const { princess, helper } = gameState.stats;
 	[princess.outfit, helper.outfit] = [helper.outfit, princess.outfit];
-
-	// Небольшое повышение доверия за совместное действие
-	helper.trustLevel = Math.min(100, helper.trustLevel + 5);
-	princess.loyalty = Math.min(100, princess.loyalty + 5);
-
-	// НЕ меняем очередь хода для специальных действий
-	// this.switchTurn(gameState); - убираем эту строку
 
 	const characterNames = {
             'princess': 'Княжна',
@@ -144,35 +133,26 @@ class CoopGameLogic {
     }
 
     applyEffects(gameState, effects, character) {
-        Object.keys(effects).forEach(effect => {
+	Object.keys(effects).forEach(effect => {
             const value = effects[effect];
             
             switch (effect) {
-            case 'loyalty':
-                gameState.stats.princess.loyalty = Math.max(0, Math.min(100, 
-									gameState.stats.princess.loyalty + value));
-                break;
-            case 'trustLevel':
-                gameState.stats.helper.trustLevel = Math.max(0, Math.min(100, 
-									 gameState.stats.helper.trustLevel + value));
-                break;
             case 'outfit':
-                if (character === 'princess') {
+		if (character === 'princess') {
                     gameState.stats.princess.outfit = value;
-                } else if (character === 'helper') {
+		} else if (character === 'helper') {
                     gameState.stats.helper.outfit = value;
-                }
-                break;
+		}
+		break;
             case 'flag':
-                gameState.flags[value] = true;
-                break;
+		gameState.flags[value] = true;
+		break;
             case 'location':
-                gameState.location = value;
-                // При смене локации обновляем список NPC
-                gameState.npcsPresent = this.getNPCsForLocation(value);
-                break;
+		gameState.location = value;
+		gameState.npcsPresent = this.getNPCsForLocation(value);
+		break;
             }
-        });
+	});
     }
 
     getNPCsForLocation(location) {
@@ -269,24 +249,20 @@ class CoopGameLogic {
     }
 
     isChoiceAvailable(choice, gameState, character) {
-        if (!choice.requirements) return true;
+	if (!choice.requirements) return true;
 
-        return choice.requirements.every(req => {
+	return choice.requirements.every(req => {
             switch (req.type) {
             case 'outfit':
-                return gameState.stats[character].outfit === req.value;
-            case 'loyalty':
-                return gameState.stats.princess.loyalty >= req.value;
-            case 'trustLevel':
-                return gameState.stats.helper.trustLevel >= req.value;
+		return gameState.stats[character].outfit === req.value;
             case 'flag':
-                return gameState.flags[req.value];
+		return gameState.flags[req.value];
             case 'npcsAbsent':
-                return gameState.npcsPresent.length === 0;
+		return gameState.npcsPresent.length === 0;
             default:
-                return true;
+		return true;
             }
-        });
+	});
     }
 
     getPlayerRole(gameState, playerId) {

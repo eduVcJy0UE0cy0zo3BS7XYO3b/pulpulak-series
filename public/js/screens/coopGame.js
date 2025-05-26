@@ -123,8 +123,6 @@ class CoopGame {
             data.players.princess?.name || '-';
 	this.element.querySelector('#princess-outfit').textContent = 
             this.getOutfitName(data.stats.princess?.outfit || 'nightgown');
-	this.element.querySelector('#princess-loyalty').textContent = 
-            data.stats.princess?.loyalty || 50;
 
 	// Информация о помощнице
 	this.element.querySelector('#helper-player').textContent = 
@@ -135,8 +133,6 @@ class CoopGame {
 	
 	this.element.querySelector('#helper-outfit').textContent = 
             this.getOutfitName(helperOutfit || 'common_dress');
-	this.element.querySelector('#helper-trust').textContent = 
-            data.stats.helper?.trustLevel || 75;
     }
 
     getOutfitName(outfitId) {
