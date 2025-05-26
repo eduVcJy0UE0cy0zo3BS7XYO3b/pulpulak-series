@@ -6,6 +6,36 @@ class CoopGameLogic {
         this.outfitRequests = new Map(); // roomId -> activeRequest
     }
 
+    // Запуск игры
+    startGame(roomId, players) {
+        const gameState = {
+            roomId: roomId,
+            players: players,
+            currentScene: 'coop_awakening',
+            turnOrder: 'princess', 
+            chapter: 1,
+            location: 'princess_chamber',
+            npcsPresent: [], // ВАЖНО: в начале никого нет - можно переодеваться!
+            stats: {
+                princess: {
+                    outfit: 'nightgown',
+                    awareness: 0,
+                    loyalty: {},
+                    inventory: []
+                },
+                helper: {
+                    outfit: 'common_dress',
+                    awareness: 0,
+                    secrets_revealed: 0,
+                    inventory: ['translation_earrings', 'voice_medallion']
+                }
+            }
+        };
+
+        this.games.set(roomId, gameState);
+        return this.getGameData(roomId);
+    }
+
     // Создать запрос на обмен одеждой
     createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter) {
         const gameState = this.games.get(roomId);
@@ -13,6 +43,7 @@ class CoopGameLogic {
             return { success: false, message: "Игра не найдена" };
         }
 
+        // Проверяем, можно ли переодеваться (нет посторонних)
         if (!this.canSwitchOutfits(gameState)) {
             return { 
                 success: false, 
@@ -90,9 +121,16 @@ class CoopGameLogic {
             };
         }
 
-        // Меняем наряды
+        // Меняем наряды местами
         const { princess, helper } = gameState.stats;
-        [princess.outfit, helper.outfit] = [helper.outfit, princess.outfit];
+        const tempOutfit = princess.outfit;
+        princess.outfit = helper.outfit;
+        helper.outfit = tempOutfit;
+
+        console.log('👗 Обмен выполнен:', {
+            princessNew: princess.outfit,
+            helperNew: helper.outfit
+        });
 
         return {
             success: true,
@@ -101,25 +139,13 @@ class CoopGameLogic {
         };
     }
 
-    // Получить активный запрос для комнаты
-    getActiveOutfitRequest(roomId) {
-        return this.outfitRequests.get(roomId) || null;
+    // Проверить, можно ли переодеваться
+    canSwitchOutfits(gameState) {
+        // Можно переодеваться только когда персонажи наедине
+        return !gameState.npcsPresent || gameState.npcsPresent.length === 0;
     }
 
-    // Отменить запрос (при выходе игрока или смене сцены)
-    cancelOutfitRequest(roomId) {
-        this.outfitRequests.delete(roomId);
-    }
-
-    generateRequestId() {
-        return Math.random().toString(36).substring(2, 15);
-    }
-
-    getCharacterName(character) {
-        return character === 'princess' ? 'Княжна' : 'Помощница';
-    }
-
-    // Обновить getChoicesForCharacter для новой логики
+    // Получить выборы для персонажа
     getChoicesForCharacter(gameState, character, sceneData) {
         let choices = [];
         
@@ -131,13 +157,14 @@ class CoopGameLogic {
             });
         }
 
-        // Предложение обмена одеждой доступно ВСЕГДА, если персонажи наедине
-        // И если нет активного запроса
+        // КНОПКА ПРЕДЛОЖЕНИЯ обмена одеждой доступна для ОБОИХ персонажей
+        // если они наедине и нет активного запроса
         if (this.canSwitchOutfits(gameState) && !this.outfitRequests.has(gameState.roomId)) {
+            const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
             choices.push({
                 id: 'request_outfit_swap',
-                text: '👗 Предложить обмен одеждой',
-                description: `Предложить поменяться нарядами`,
+                text: '👗 Предложить поменяться одеждой',
+                description: `Предложить ${otherCharacter} поменяться нарядами`,
                 isOutfitRequest: true
             });
         }
@@ -145,18 +172,35 @@ class CoopGameLogic {
         return choices;
     }
 
-    // Также нужно обновить processChoice для обработки запросов
+    // Обработка обычных выборов (НЕ запросов одежды)
+    makeChoice(roomId, playerId, choiceId, character) {
+        const gameState = this.games.get(roomId);
+        if (!gameState) {
+            return { success: false, message: "Игра не найдена" };
+        }
+
+        const result = this.processChoice(gameState, choiceId, character);
+        if (result.success) {
+            return {
+                success: true,
+                gameData: this.getGameData(roomId),
+                message: result.message
+            };
+        }
+
+        return result;
+    }
+
     processChoice(gameState, choiceId, character) {
-        // Убираем старую логику switch_outfits, заменяем на request_outfit_swap
+        // Запросы одежды обрабатываются отдельно
         if (choiceId === 'request_outfit_swap') {
-            // Эта логика теперь обрабатывается отдельно через createOutfitSwapRequest
             return { 
                 success: false, 
                 message: "Используйте отдельный обработчик для запросов обмена одеждой" 
             };
         }
 
-        // Остальная логика остается без изменений...
+        // Обработка обычных выборов
         const sceneData = CoopStoryData.getScene(gameState.currentScene);
         const choice = sceneData.choices[character]?.find(c => c.id === choiceId);
         
@@ -193,15 +237,47 @@ class CoopGameLogic {
         };
     }
 
-    // Обновить getGameData для включения информации о запросах
+    // Получить активный запрос для комнаты
+    getActiveOutfitRequest(roomId) {
+        return this.outfitRequests.get(roomId) || null;
+    }
+
+    // Отменить запрос 
+    cancelOutfitRequest(roomId) {
+        this.outfitRequests.delete(roomId);
+    }
+
+    // Применить эффекты выбора
+    applyEffects(gameState, effects, character) {
+        if (effects.outfit) {
+            gameState.stats[character].outfit = effects.outfit;
+        }
+        if (effects.location) {
+            gameState.location = effects.location;
+            gameState.npcsPresent = this.getNPCsForLocation(effects.location);
+        }
+        if (effects.awareness) {
+            gameState.stats[character].awareness += effects.awareness;
+        }
+    }
+
+    // Проверить доступность выбора
+    isChoiceAvailable(choice, gameState, character) {
+        // Базовая проверка - можно расширить
+        return true;
+    }
+
+    // Сменить очередь хода
+    switchTurn(gameState) {
+        gameState.turnOrder = gameState.turnOrder === 'princess' ? 'helper' : 'princess';
+    }
+
+    // Получить данные игры
     getGameData(roomId) {
         const gameState = this.games.get(roomId);
         if (!gameState) return null;
 
         const sceneData = CoopStoryData.getScene(gameState.currentScene);
-        
-        // Создаем глубокую копию stats
-        const deepCopyStats = JSON.parse(JSON.stringify(gameState.stats));
         
         const gameData = {
             roomId: roomId,
@@ -214,15 +290,50 @@ class CoopGameLogic {
                 princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
                 helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
             },
-            stats: deepCopyStats,
+            stats: JSON.parse(JSON.stringify(gameState.stats)), // Глубокая копия
             currentTurn: gameState.turnOrder,
             chapter: gameState.chapter,
             location: gameState.location,
             npcsPresent: gameState.npcsPresent,
-            activeOutfitRequest: this.getActiveOutfitRequest(roomId) // Добавляем информацию о запросе
+            activeOutfitRequest: this.getActiveOutfitRequest(roomId) // Информация о запросе
         };
 
         return gameData;
+    }
+
+    // Вспомогательные методы
+    generateRequestId() {
+        return Math.random().toString(36).substring(2, 15);
+    }
+
+    getCharacterName(character) {
+        return character === 'princess' ? 'Княжна' : 'Помощница';
+    }
+
+    getOutfitName(outfitId) {
+        const outfitNames = {
+            'nightgown': 'Ночная рубашка',
+            'princess_dress': 'Княжеское платье',
+            'common_dress': 'Простое платье',
+            'court_dress': 'Придворное платье'
+        };
+        return outfitNames[outfitId] || outfitId;
+    }
+
+    getNPCsForLocation(location) {
+        const npcsByLocation = {
+            'princess_chamber': [], // Никого нет - можно переодеваться
+            'throne_room': ['Король', 'Королева', 'Стражники'],
+            'kitchen': ['Повар', 'Слуги'],
+            'garden': [],
+            'armory': ['Оружейник']
+        };
+        return npcsByLocation[location] || [];
+    }
+
+    removeGame(roomId) {
+        this.games.delete(roomId);
+        this.outfitRequests.delete(roomId);
     }
 }
 
