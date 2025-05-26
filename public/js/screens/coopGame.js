@@ -7,6 +7,7 @@ class CoopGame {
         this.gameData = null;
         this.playerRole = null;
         this.chatVisible = false;
+	this.activeOutfitRequest = null; // Добавляем поле для активного запроса
     }
 
     async show(data) {
@@ -56,6 +57,14 @@ class CoopGame {
         this.app.socketManager.socket.on('chat-message', (data) => {
             this.addChatMessage(data);
         });
+	
+	this.app.socketManager.socket.on('outfit-request-created', (data) => {
+            this.handleOutfitRequestCreated(data);
+        });
+
+        this.app.socketManager.socket.on('outfit-request-resolved', (data) => {
+            this.handleOutfitRequestResolved(data);
+        });
     }
 
     determinePlayerRole(data) {
@@ -70,6 +79,7 @@ class CoopGame {
 
     updateGame(data) {
         this.gameData = data;
+	this.activeOutfitRequest = data.activeOutfitRequest;
 
         // Обновляем ID комнаты
         this.element.querySelector('#current-room-id').textContent = data.roomId;
@@ -84,11 +94,84 @@ class CoopGame {
         // Обновляем информацию о игроках
         this.updatePlayersInfo(data);
 
+	this.updateOutfitRequestDisplay();
+
         // Обновляем выборы для каждого персонажа
         this.updateCharacterChoices('princess', data.choices.princess);
         this.updateCharacterChoices('helper', data.choices.helper);
     }
 
+    updateOutfitRequestDisplay() {
+        const requestContainer = this.element.querySelector('#outfit-request-container');
+        requestContainer.innerHTML = '';
+
+        if (!this.activeOutfitRequest) {
+            return;
+        }
+
+        const socketId = this.app.socketManager.socket.id;
+        const isTargetPlayer = this.activeOutfitRequest.targetPlayerId === socketId;
+        const isRequestInitiator = this.activeOutfitRequest.fromPlayerId === socketId;
+
+        if (isTargetPlayer) {
+            // Показываем запрос с кнопками принять/отклонить
+            this.showIncomingOutfitRequest();
+        } else if (isRequestInitiator) {
+            // Показываем, что запрос отправлен и ждем ответа
+            this.showOutgoingOutfitRequest();
+        }
+    }
+
+    getCharacterName(character) {
+        return character === 'princess' ? 'Княжна' : 'Помощница';
+    }
+    
+    showIncomingOutfitRequest() {
+        const requestContainer = this.element.querySelector('#outfit-request-container');
+        const fromCharacterName = this.getCharacterName(this.activeOutfitRequest.fromCharacter);
+        
+        requestContainer.innerHTML = `
+            <div class="outfit-request-notification incoming">
+                <div class="request-header">👗 Запрос на обмен одеждой</div>
+                <div class="request-message">
+                    ${fromCharacterName} предлагает поменяться одеждой!
+                </div>
+                <div class="request-actions">
+                    <button class="btn btn-success request-btn" data-action="accept-outfit-swap">
+                        ✅ Принять
+                    </button>
+                    <button class="btn btn-secondary request-btn" data-action="decline-outfit-swap">
+                        ❌ Отклонить
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Добавляем обработчики для кнопок
+        requestContainer.querySelector('[data-action="accept-outfit-swap"]').addEventListener('click', () => {
+            this.respondToOutfitRequest(true);
+        });
+
+        requestContainer.querySelector('[data-action="decline-outfit-swap"]').addEventListener('click', () => {
+            this.respondToOutfitRequest(false);
+        });
+    }
+
+    showOutgoingOutfitRequest() {
+        const requestContainer = this.element.querySelector('#outfit-request-container');
+        const targetCharacterName = this.getCharacterName(this.activeOutfitRequest.targetCharacter);
+        
+        requestContainer.innerHTML = `
+            <div class="outfit-request-notification outgoing">
+                <div class="request-header">👗 Запрос отправлен</div>
+                <div class="request-message">
+                    Ожидаем ответа от ${targetCharacterName}...
+                </div>
+                <div class="request-waiting">⏳</div>
+            </div>
+        `;
+    }
+    
     updateLocationInfo(data) {
 	const locationNames = {
             'princess_chamber': 'Спальня княжны',
@@ -196,29 +279,76 @@ class CoopGame {
     }
 
     createChoiceButton(choice, character) {
-	const button = document.createElement('button');
-	button.className = 'choice-button';
-	
-	// Особое оформление для смены одежды
-	if (choice.id === 'switch_outfits') {
-            button.classList.add('outfit-switch-btn');
-	}
-	
-	button.innerHTML = `
-        <strong>${choice.text}</strong><br>
-        <small>${choice.description}</small>
-    `;
-	
-	button.addEventListener('click', () => {
-            this.makeChoice(choice.id, character);
-	});
-	
-	if (choice.disabled) {
+        const button = document.createElement('button');
+        button.className = 'choice-button';
+        
+        // Особое оформление для запроса обмена одеждой
+        if (choice.id === 'request_outfit_swap') {
+            button.classList.add('outfit-request-btn');
+        }
+        
+        button.innerHTML = `
+            <strong>${choice.text}</strong><br>
+            <small>${choice.description}</small>
+        `;
+        
+        button.addEventListener('click', () => {
+            if (choice.id === 'request_outfit_swap') {
+                this.requestOutfitSwap(character);
+            } else {
+                this.makeChoice(choice.id, character);
+            }
+        });
+        
+        if (choice.disabled) {
             button.disabled = true;
             button.innerHTML += `<br><small style="color: #dc3545;">🚫 ${choice.reason}</small>`;
-	}
-	
-	return button;
+        }
+        
+        return button;
+    }
+
+    requestOutfitSwap(character) {
+        console.log(`👗 Отправляем запрос обмена одеждой для ${character}`);
+        this.app.socketManager.socket.emit('request-outfit-swap', { character: character });
+    }
+
+    respondToOutfitRequest(accepted) {
+        console.log(`👗 Отвечаем на запрос обмена одеждой: ${accepted}`);
+        this.app.socketManager.socket.emit('respond-outfit-swap', { accepted: accepted });
+    }
+
+    handleOutfitRequestCreated(data) {
+        console.log('👗 Новый запрос обмена одеждой:', data);
+        this.updateGame(data.gameData);
+        
+        // Показываем уведомление
+        this.showNotification(data.message, 'info');
+    }
+    
+    showNotification(message, type = 'info') {
+        // Простое уведомление - можно заменить на более красивое
+        const notification = document.createElement('div');
+        notification.className = `game-notification ${type}`;
+        notification.textContent = message;
+        
+        this.element.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 4000);
+    }
+
+    handleOutfitRequestResolved(data) {
+        console.log('👗 Запрос обмена одеждой разрешен:', data);
+        this.updateGame(data.gameData);
+        
+        // Показываем результат
+        if (data.accepted) {
+            this.showNotification(data.message, 'success');
+        } else {
+            this.showNotification(data.message, 'warning');
+        }
     }
 
     makeChoice(choiceId, character) {

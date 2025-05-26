@@ -293,3 +293,135 @@
     transform: none;
     cursor: not-allowed;
 }
+
+/* Стили для запросов обмена одеждой */
+.request-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    max-width: 350px;
+}
+
+.outfit-request-notification {
+    background: rgba(255, 255, 255, 0.98);
+    border: 3px solid;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    animation: slideInRight 0.3s ease-out;
+}
+
+.outfit-request-notification.incoming {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.outfit-request-notification.outgoing {
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+}
+
+.request-header {
+    font-weight: bold;
+    font-size: 16px;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.request-message {
+    color: var(--text-dark);
+    margin-bottom: 15px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.request-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.request-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 6px;
+    font-weight: bold;
+    min-width: 80px;
+}
+
+.request-waiting {
+    text-align: center;
+    font-size: 24px;
+    animation: pulse 1.5s ease-in-out infinite alternate;
+}
+
+.outfit-request-btn {
+    background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 100%) !important;
+    border: 2px solid #ff6b9d !important;
+    color: #8b0000 !important;
+    font-weight: bold !important;
+}
+
+.outfit-request-btn:hover {
+    background: linear-gradient(45deg, #ff6b9d 0%, #ff9a9e 100%) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 107, 157, 0.3);
+}
+
+/* Уведомления */
+.game-notification {
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    z-index: 1001;
+    animation: slideInRight 0.3s ease-out;
+    max-width: 300px;
+}
+
+.game-notification.success {
+    background: #28a745;
+}
+
+.game-notification.warning {
+    background: #ffc107;
+    color: #856404;
+}
+
+.game-notification.info {
+    background: #17a2b8;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .request-container {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+    
+    .game-notification {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+}

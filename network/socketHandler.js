@@ -113,37 +113,38 @@ class SocketHandler {
 
             // Обработка выборов
             socket.on('make-choice', (data) => {
-                try {
+		try {
                     const roomId = this.playerRooms.get(socket.id);
                     if (!roomId) {
-                        socket.emit('error', 'Вы не находитесь в игре');
-                        return;
+			socket.emit('error', 'Вы не находитесь в игре');
+			return;
                     }
 
                     const room = this.rooms.get(roomId);
                     if (!room || room.gameState !== 'playing') {
-                        socket.emit('error', 'Игра не найдена или не началась');
-                        return;
+			socket.emit('error', 'Игра не найдена или не началась');
+			return;
                     }
 
                     console.log(`🎯 Получен выбор: ${data.choiceId} от ${socket.id} для ${data.character}`);
 
+                    // Если это запрос обмена одеждой, перенаправляем на специальный обработчик
+                    if (data.choiceId === 'request_outfit_swap') {
+			socket.emit('request-outfit-swap', { character: data.character });
+			return;
+                    }
+
                     const result = this.gameLogic.makeChoice(roomId, socket.id, data.choiceId, data.character);
                     
                     if (result.success) {
-                        console.log('✅ Выбор обработан, отправляем обновление:', {
-                            helperOutfit: result.gameData.stats?.helper?.outfit,
-                            princessOutfit: result.gameData.stats?.princess?.outfit
-                        });
-                        
-                        this.io.to(roomId).emit('game-update', result.gameData);
+			this.io.to(roomId).emit('game-update', result.gameData);
                     } else {
-                        socket.emit('error', result.message);
+			socket.emit('error', result.message);
                     }
-                } catch (error) {
+		} catch (error) {
                     console.error('❌ Ошибка обработки выбора:', error);
                     socket.emit('error', 'Не удалось обработать выбор');
-                }
+		}
             });
 
             // Чат
@@ -167,6 +168,72 @@ class SocketHandler {
                 }
             });
 
+	    socket.on('request-outfit-swap', (data) => {
+		try {
+                    const roomId = this.playerRooms.get(socket.id);
+                    if (!roomId) {
+			socket.emit('error', 'Вы не находитесь в игре');
+			return;
+                    }
+
+                    const room = this.rooms.get(roomId);
+                    if (!room || room.gameState !== 'playing') {
+			socket.emit('error', 'Игра не найдена или не началась');
+			return;
+                    }
+
+                    console.log(`👗 Запрос обмена одеждой от ${socket.id} для ${data.character}`);
+
+                    const result = this.gameLogic.createOutfitSwapRequest(roomId, socket.id, data.character);
+                    
+                    if (result.success) {
+			// Уведомляем всех игроков о новом запросе
+			const updatedGameData = this.gameLogic.getGameData(roomId);
+			this.io.to(roomId).emit('outfit-request-created', {
+                            request: result.request,
+                            message: result.message,
+                            gameData: updatedGameData
+			});
+                    } else {
+			socket.emit('error', result.message);
+                    }
+		} catch (error) {
+                    console.error('❌ Ошибка создания запроса обмена одеждой:', error);
+                    socket.emit('error', 'Не удалось создать запрос');
+		}
+            });
+
+            // Ответ на запрос обмена одеждой
+            socket.on('respond-outfit-swap', (data) => {
+		try {
+                    const roomId = this.playerRooms.get(socket.id);
+                    if (!roomId) {
+			socket.emit('error', 'Вы не находитесь в игре');
+			return;
+                    }
+
+                    console.log(`👗 Ответ на запрос обмена: ${data.accepted} от ${socket.id}`);
+
+                    const result = this.gameLogic.respondToOutfitSwapRequest(roomId, socket.id, data.accepted);
+                    
+                    if (result.success) {
+			// Уведомляем всех игроков о результате
+			const updatedGameData = this.gameLogic.getGameData(roomId);
+			this.io.to(roomId).emit('outfit-request-resolved', {
+                            accepted: result.accepted,
+                            declined: result.declined,
+                            message: result.message,
+                            gameData: updatedGameData
+			});
+                    } else {
+			socket.emit('error', result.message);
+                    }
+		} catch (error) {
+                    console.error('❌ Ошибка ответа на запрос обмена одеждой:', error);
+                    socket.emit('error', 'Не удалось обработать ответ');
+		}
+            });
+	    
             // Покидание комнаты
             socket.on('leave-room', (roomId) => {
                 this.handlePlayerLeave(socket, roomId);
