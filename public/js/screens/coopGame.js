@@ -90,41 +90,49 @@ class CoopGame {
     }
 
     updateLocationInfo(data) {
-        const locationNames = {
+	const locationNames = {
             'princess_chamber': 'Спальня княжны',
             'throne_room': 'Тронный зал',
             'kitchen': 'Кухня',
             'garden': 'Сад',
-            'armory': 'Арсенал'
-        };
+            'armory': 'Арсенал',
+            'private_quarters': 'Личные покои',
+            'secret_passage': 'Тайный проход'
+	};
 
-        this.element.querySelector('#current-location').textContent = 
+	this.element.querySelector('#current-location').textContent = 
             locationNames[data.location] || data.location;
 
-        const npcsElement = this.element.querySelector('#npcs-present');
-        if (data.npcsPresent && data.npcsPresent.length > 0) {
+	const npcsElement = this.element.querySelector('#npcs-present');
+	if (data.npcsPresent && data.npcsPresent.length > 0) {
             npcsElement.innerHTML = `<br>👥 <em>Присутствуют: ${data.npcsPresent.join(', ')}</em>`;
-        } else {
-            npcsElement.innerHTML = `<br>🤫 <em>Никого нет поблизости</em>`;
-        }
+	} else {
+            npcsElement.innerHTML = `<br>🤫 <em>Никого нет поблизости - можно переодеваться!</em>`;
+	}
     }
 
     updatePlayersInfo(data) {
-        // Информация о княжне
-        this.element.querySelector('#princess-player').textContent = 
-            data.players.princess?.name || '-';
-        this.element.querySelector('#princess-outfit').textContent = 
-            this.getOutfitName(data.stats.princess.outfit);
-        this.element.querySelector('#princess-loyalty').textContent = 
-            data.stats.princess.loyalty;
+	console.log('🎭 Обновление информации о игроках:', data.stats);
 
-        // Информация о помощнице
-        this.element.querySelector('#helper-player').textContent = 
+	// Информация о княжне
+	this.element.querySelector('#princess-player').textContent = 
+            data.players.princess?.name || '-';
+	this.element.querySelector('#princess-outfit').textContent = 
+            this.getOutfitName(data.stats.princess?.outfit || 'nightgown');
+	this.element.querySelector('#princess-loyalty').textContent = 
+            data.stats.princess?.loyalty || 50;
+
+	// Информация о помощнице с проверкой
+	this.element.querySelector('#helper-player').textContent = 
             data.players.helper?.name || '-';
-        this.element.querySelector('#helper-outfit').textContent = 
-            this.getOutfitName(data.stats.helper.outfit);
-        this.element.querySelector('#helper-trust').textContent = 
-            data.stats.helper.trustLevel;
+	
+	const helperOutfit = data.stats.helper?.outfit;
+	console.log('👗 Наряд помощницы:', helperOutfit);
+	
+	this.element.querySelector('#helper-outfit').textContent = 
+            this.getOutfitName(helperOutfit || 'common_dress');
+	this.element.querySelector('#helper-trust').textContent = 
+            data.stats.helper?.trustLevel || 75;
     }
 
     getOutfitName(outfitId) {

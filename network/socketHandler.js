@@ -11,28 +11,33 @@ class SocketHandler {
 
     // В обработчике start-coop-game заменить заглушку:
     socket.on('start-coop-game', (data) => {
-        try {
+	try {
             const room = this.rooms.get(data.roomId);
             if (!room || !room.players.princess || !room.players.helper) {
-                socket.emit('error', 'Недостаточно игроков для начала игры');
-                return;
+		socket.emit('error', 'Недостаточно игроков для начала игры');
+		return;
             }
 
             if (room.players.princess.id !== socket.id) {
-                socket.emit('error', 'Только создатель комнаты может начать игру');
-                return;
+		socket.emit('error', 'Только создатель комнаты может начать игру');
+		return;
             }
 
             room.gameState = 'playing';
             
-            // Используем реальную игровую логику вместо заглушки
             const gameData = this.gameLogic.startGame(data.roomId, room.players);
             
+            // Добавим отладку перед отправкой
+            console.log('📡 Отправка game-started:', {
+		helperOutfit: gameData.stats?.helper?.outfit,
+		princessOutfit: gameData.stats?.princess?.outfit
+            });
+            
             this.io.to(data.roomId).emit('game-started', gameData);
-        } catch (error) {
+	} catch (error) {
             console.error('❌ Ошибка запуска игры:', error);
             socket.emit('error', 'Не удалось запустить игру');
-        }
+	}
     });
 
     // В обработчике make-choice:

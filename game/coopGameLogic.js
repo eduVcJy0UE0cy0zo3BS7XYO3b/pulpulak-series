@@ -10,10 +10,10 @@ class CoopGameLogic {
             roomId: roomId,
             players: players,
             currentScene: 'coop_awakening',
-            turnOrder: 'princess', // чей ход
+            turnOrder: 'princess',
             chapter: 1,
             location: 'princess_chamber',
-            npcsPresent: [], // никого нет - можно менять одежду
+            npcsPresent: [], // Изначально наедине
             stats: {
 		princess: {
                     outfit: 'nightgown',
@@ -26,6 +26,9 @@ class CoopGameLogic {
             },
             flags: {}
 	};
+
+	// Явно устанавливаем NPCs для начальной локации
+	gameState.npcsPresent = this.getNPCsForLocation(gameState.location);
 
 	this.games.set(roomId, gameState);
 	return this.getGameData(roomId);
@@ -55,35 +58,42 @@ class CoopGameLogic {
     }
 
     processChoice(gameState, choiceId, character) {
-        // Обработка смены одежды
-        if (choiceId === 'switch_outfits') {
+	// Обработка смены одежды
+	if (choiceId === 'switch_outfits') {
             return this.handleOutfitSwitch(gameState, character);
-        }
+	}
 
-        const sceneData = CoopStoryData.getScene(gameState.currentScene);
-        const choice = sceneData.choices[character]?.find(c => c.id === choiceId);
-        
-        if (!choice) {
+	const sceneData = CoopStoryData.getScene(gameState.currentScene);
+	const choice = sceneData.choices[character]?.find(c => c.id === choiceId);
+	
+	if (!choice) {
             return { success: false, message: "Неверный выбор" };
-        }
+	}
 
-        // Применяем эффекты выбора
-        if (choice.effects) {
+	// Применяем эффекты выбора
+	if (choice.effects) {
             this.applyEffects(gameState, choice.effects, character);
-        }
+	}
 
-        // Проверяем, меняется ли сцена
-        if (choice.nextScene) {
+	// Проверяем, меняется ли сцена
+	if (choice.nextScene) {
             gameState.currentScene = choice.nextScene;
-        }
+            
+            // При смене сцены обновляем локацию если она указана
+            const newSceneData = CoopStoryData.getScene(choice.nextScene);
+            if (newSceneData.location) {
+		gameState.location = newSceneData.location;
+		gameState.npcsPresent = this.getNPCsForLocation(newSceneData.location);
+            }
+	}
 
-        // Меняем очередь хода
-        this.switchTurn(gameState);
+	// Меняем очередь хода
+	this.switchTurn(gameState);
 
-        return { 
+	return { 
             success: true, 
             message: choice.resultText || "Выбор сделан"
-        };
+	};
     }
 
     handleOutfitSwitch(gameState, character) {
@@ -117,13 +127,14 @@ class CoopGameLogic {
     }
 
     canSwitchOutfits(gameState) {
-	// Можно менять одежду только когда на локации никого нет кроме героинь
+	const canSwitch = gameState.npcsPresent.length === 0;
 	console.log('🔍 Проверка смены одежды:', {
             location: gameState.location,
             npcsPresent: gameState.npcsPresent,
-            canSwitch: gameState.npcsPresent.length === 0
+            canSwitch: canSwitch,
+            currentScene: gameState.currentScene
 	});
-	return gameState.npcsPresent.length === 0;
+	return canSwitch;
     }
 
     applyEffects(gameState, effects, character) {
@@ -159,16 +170,20 @@ class CoopGameLogic {
     }
 
     getNPCsForLocation(location) {
-        const locationNPCs = {
-            'princess_chamber': [], // только княжна и помощница
+	const locationNPCs = {
+            'princess_chamber': [], // спальня - наедине
+            'private_quarters': [], // личные покои - наедине  
+            'secret_passage': [], // тайный проход - наедине
+            'abandoned_tower': [], // заброшенная башня - наедине
             'throne_room': ['guards', 'courtiers'],
             'kitchen': ['cook', 'servants'],
             'garden': ['gardener'],
             'armory': ['guard_captain'],
-            'village_square': ['villagers', 'merchants']
-        };
-        
-        return locationNPCs[location] || [];
+            'village_square': ['villagers', 'merchants'],
+            'great_hall': ['nobles', 'servants']
+	};
+	
+	return locationNPCs[location] || [];
     }
 
     switchTurn(gameState) {
@@ -176,28 +191,37 @@ class CoopGameLogic {
     }
 
     getGameData(roomId) {
-        const gameState = this.games.get(roomId);
-        if (!gameState) return null;
+	const gameState = this.games.get(roomId);
+	if (!gameState) return null;
 
-        const sceneData = CoopStoryData.getScene(gameState.currentScene);
-        
-        return {
+	const sceneData = CoopStoryData.getScene(gameState.currentScene);
+	
+	const gameData = {
             roomId: roomId,
             players: gameState.players,
             scene: {
-                title: sceneData.title,
-                text: sceneData.text
+		title: sceneData.title,
+		text: sceneData.text
             },
             choices: {
-                princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
-                helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
+		princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
+		helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
             },
-            stats: gameState.stats,
+            stats: gameState.stats, // ← Убедимся что stats копируются правильно
             currentTurn: gameState.turnOrder,
             chapter: gameState.chapter,
             location: gameState.location,
             npcsPresent: gameState.npcsPresent
-        };
+	};
+
+	// Добавим отладку
+	console.log('📊 getGameData stats:', {
+            original: gameState.stats,
+            returned: gameData.stats,
+            helperOutfit: gameData.stats?.helper?.outfit
+	});
+
+	return gameData;
     }
 
     getChoicesForCharacter(gameState, character, sceneData) {
