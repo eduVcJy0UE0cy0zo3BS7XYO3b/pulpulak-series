@@ -1,12 +1,17 @@
 class SocketManager {
     constructor() {
         this.socket = io();
+        this.username = null;
         this.setupConnection();
     }
 
     setupConnection() {
         this.socket.on('connect', () => {
             console.log('🔌 Подключен к серверу');
+            // Send username if we have it
+            if (this.username) {
+                this.socket.emit('set-username', this.username);
+            }
         });
 
         this.socket.on('disconnect', () => {
@@ -15,7 +20,10 @@ class SocketManager {
 
         this.socket.on('connect_error', (error) => {
             console.error('❌ Ошибка подключения:', error);
-            alert('Ошибка подключения к серверу. Проверьте, что сервер запущен.');
+            // NotificationManager will be imported by main app
+            if (window.NotificationManager) {
+                window.NotificationManager.add('Ошибка подключения к серверу. Проверьте, что сервер запущен.', 'error', 10000);
+            }
         });
 
         this.socket.on('connection-test', (data) => {
@@ -25,12 +33,12 @@ class SocketManager {
 
     createRoom() {
         console.log('📝 Создание комнаты...');
-        this.socket.emit('create-room');
+        this.socket.emit('create-room', { username: this.username });
     }
 
     joinRoom(roomId) {
         console.log(`🚪 Присоединение к комнате: ${roomId}`);
-        this.socket.emit('join-room', roomId);
+        this.socket.emit('join-room', { roomId, username: this.username });
     }
 
     startCoopGame(roomId) {
@@ -56,6 +64,13 @@ class SocketManager {
 
     leaveRoom(roomId) {
         this.socket.emit('leave-room', roomId);
+    }
+
+    setUsername(username) {
+        this.username = username;
+        if (this.socket.connected) {
+            this.socket.emit('set-username', username);
+        }
     }
 }
 

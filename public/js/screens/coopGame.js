@@ -78,6 +78,14 @@ class CoopGame {
     }
 
     updateGame(data) {
+        console.log('📊 DEBUG updateGame called with data:', {
+            roomId: data.roomId,
+            choices: data.choices,
+            playerRole: this.playerRole,
+            location: data.location,
+            npcsPresent: data.npcsPresent
+        });
+        
         this.gameData = data;
 	this.activeOutfitRequest = data.activeOutfitRequest;
 
@@ -229,6 +237,14 @@ class CoopGame {
     }
 
     updateCharacterChoices(character, choices) {
+	console.log(`🔍 DEBUG updateCharacterChoices for ${character}:`, {
+		choices: choices,
+		playerRole: this.playerRole,
+		isMyRole: this.playerRole === character,
+		gameDataChoices: this.gameData.choices,
+		outfitChoices: choices?.filter(c => c.isOutfitChange)
+	});
+
 	const choicesDiv = this.element.querySelector(`#${character}-choices`);
 	choicesDiv.innerHTML = '';
 
@@ -239,6 +255,7 @@ class CoopGame {
             if (hasChoices) {
 		// Показываем только действия смены одежды для "не моего" персонажа
 		const outfitChoices = choices.filter(choice => choice.isOutfitChange);
+		console.log(`🎭 DEBUG: Filtered outfit choices for ${character}:`, outfitChoices);
 		if (outfitChoices.length > 0) {
                     const header = document.createElement('div');
                     header.className = 'other-player-actions';

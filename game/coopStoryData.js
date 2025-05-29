@@ -52,6 +52,8 @@ const coopScenes = {
         🎭 <strong>Динамика:</strong> Княжна может выбрать, как одеться, а помощница - влиять на её решение.
         Выбор наряда повлияет на то, как персонажей будут воспринимать в замке.`,
         
+        location: 'princess_chamber',
+        
         choices: {
             princess: [
                 {
@@ -130,11 +132,7 @@ const coopScenes = {
 
 class CoopStoryData {
     static getScene(sceneId) {
-        return coopScenes[sceneId] || {
-            title: "Неизвестная сцена",
-            text: "Произошла ошибка.",
-            choices: { princess: [], helper: [] }
-        };
+        return coopScenes[sceneId];
     }
 
     static getAllScenes() {

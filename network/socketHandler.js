@@ -12,35 +12,54 @@ class SocketHandler {
     setupEventHandlers() {
         this.io.on('connection', (socket) => {
             console.log(`🔌 Игрок подключился: ${socket.id}`);
+            
+            // Store username
+            socket.username = null;
+            
+            // Handle username setting
+            socket.on('set-username', (username) => {
+                socket.username = username;
+                console.log(`👤 Пользователь ${username} установлен для ${socket.id}`);
+            });
 
             // Создание комнаты
-            socket.on('create-room', () => {
+            socket.on('create-room', (data) => {
+                // Set username if provided
+                if (data && data.username) {
+                    socket.username = data.username;
+                }
                 const roomId = this.generateRoomId();
+                const playerName = socket.username || `Игрок ${socket.id.substring(0, 6)}`;
+                
                 const roomData = {
                     id: roomId,
                     players: {
-                        princess: null,
+                        princess: { id: socket.id, name: playerName }, // Создатель сразу становится княжной
                         helper: null
                     },
-                    gameState: 'waiting',
-                    host: socket.id
+                    gameState: 'waiting'
                 };
 
                 this.rooms.set(roomId, roomData);
                 this.playerRooms.set(socket.id, roomId);
                 socket.join(roomId);
 
-                console.log(`🏠 Комната создана: ${roomId} хостом ${socket.id}`);
+                console.log(`🏠 Комната создана: ${roomId}, игрок ${playerName} - княжна`);
                 
                 socket.emit('room-created', {
                     roomId: roomId,
-                    players: roomData.players,
-                    isHost: true
+                    players: roomData.players
                 });
             });
 
             // Присоединение к комнате
-            socket.on('join-room', (roomId) => {
+            socket.on('join-room', (data) => {
+                const roomId = typeof data === 'string' ? data : data.roomId;
+                
+                // Set username if provided
+                if (data && data.username) {
+                    socket.username = data.username;
+                }
                 const room = this.rooms.get(roomId);
                 if (!room) {
                     socket.emit('error', 'Комната не найдена');
@@ -53,10 +72,12 @@ class SocketHandler {
                 }
 
                 // Назначаем роль
+                const playerName = socket.username || `Игрок ${socket.id.substring(0, 6)}`;
+                
                 if (!room.players.princess) {
-                    room.players.princess = { id: socket.id, name: `Игрок ${socket.id.substring(0, 6)}` };
+                    room.players.princess = { id: socket.id, name: playerName };
                 } else if (!room.players.helper) {
-                    room.players.helper = { id: socket.id, name: `Игрок ${socket.id.substring(0, 6)}` };
+                    room.players.helper = { id: socket.id, name: playerName };
                 } else {
                     socket.emit('error', 'Комната полна');
                     return;
@@ -70,8 +91,7 @@ class SocketHandler {
                 // Обновляем всех в лобби
                 const lobbyData = {
                     roomId: roomId,
-                    players: room.players,
-                    isHost: socket.id === room.host
+                    players: room.players
                 };
 
                 socket.emit('room-joined', lobbyData);
@@ -87,10 +107,7 @@ class SocketHandler {
                         return;
                     }
 
-                    if (socket.id !== room.host) {
-                        socket.emit('error', 'Только создатель комнаты может начать игру');
-                        return;
-                    }
+                    // Любой игрок может начать игру, когда оба готовы
 
                     room.gameState = 'playing';
                     
@@ -152,16 +169,17 @@ class SocketHandler {
                 const roomId = this.playerRooms.get(socket.id);
                 if (roomId) {
                     const room = this.rooms.get(roomId);
-                    let playerName = 'Игрок';
+                    let playerName = socket.username || 'Игрок';
+                    let role = '';
                     
                     if (room.players.princess?.id === socket.id) {
-                        playerName = 'Княжна';
+                        role = ' (Княжна)';
                     } else if (room.players.helper?.id === socket.id) {
-                        playerName = 'Помощница';
+                        role = ' (Помощница)';
                     }
 
                     this.io.to(roomId).emit('chat-message', {
-                        playerName: playerName,
+                        sender: playerName + role,
                         message: data.message,
                         timestamp: new Date()
                     });
@@ -273,7 +291,8 @@ class SocketHandler {
             // Уведомляем оставшихся игроков
             socket.to(roomId).emit('player-left', {
                 roomId: roomId,
-                players: room.players
+                players: room.players,
+                playerName: socket.username || 'Игрок'
             });
         }
     }

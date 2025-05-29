@@ -14,7 +14,13 @@ const io = socketIo(server, {
 });
 
 // Настройка статических файлов
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.mjs')) {
+            res.set('Content-Type', 'application/javascript');
+        }
+    }
+}));
 
 // Главная страница
 app.get('/', (req, res) => {

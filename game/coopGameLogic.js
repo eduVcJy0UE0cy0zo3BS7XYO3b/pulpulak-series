@@ -127,10 +127,6 @@ class CoopGameLogic {
         princess.outfit = helper.outfit;
         helper.outfit = tempOutfit;
 
-        console.log('👗 Обмен выполнен:', {
-            princessNew: princess.outfit,
-            helperNew: helper.outfit
-        });
 
         return {
             success: true,
@@ -177,6 +173,17 @@ class CoopGameLogic {
         const gameState = this.games.get(roomId);
         if (!gameState) {
             return { success: false, message: "Игра не найдена" };
+        }
+
+        // Проверяем, что игрок управляет правильным персонажем
+        const playerCharacter = gameState.players[character];
+        if (!playerCharacter || playerCharacter.id !== playerId) {
+            return { success: false, message: "Вы управляете другим персонажем" };
+        }
+
+        // Проверяем, что сейчас ход этого персонажа (для обычных выборов)
+        if (choiceId !== 'request_outfit_swap' && gameState.turnOrder !== character) {
+            return { success: false, message: "Сейчас не ваш ход" };
         }
 
         const result = this.processChoice(gameState, choiceId, character);
