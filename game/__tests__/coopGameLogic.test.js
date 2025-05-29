@@ -47,14 +47,16 @@ describe('CoopGameLogic', () => {
             expect(gameData.players).toEqual(players);
             expect(gameData.currentTurn).toBe('princess');
             expect(gameData.chapter).toBe(1);
-            expect(gameData.location).toBe('princess_chamber');
-            expect(gameData.npcsPresent).toEqual([]);
+            expect(gameData.locations.princess.id).toBe('princess_chamber');
+            expect(gameData.locations.helper.id).toBe('princess_chamber');
+            expect(gameData.stats.princess.npcsPresent).toEqual([]);
+            expect(gameData.stats.helper.npcsPresent).toEqual([]);
         });
 
         test('должна установить правильные начальные наряды', () => {
             const gameData = gameLogic.startGame(roomId, players);
 
-            expect(gameData.stats.princess.outfit).toBe('nightgown');
+            expect(gameData.stats.princess.outfit).toBe('princess_dress');
             expect(gameData.stats.helper.outfit).toBe('common_dress');
         });
 
@@ -86,9 +88,9 @@ describe('CoopGameLogic', () => {
             });
 
             test('не должна создавать запрос если есть NPC', () => {
-                // Устанавливаем NPC в локации
+                // Устанавливаем NPC в локации для княжны
                 const gameState = gameLogic.games.get(roomId);
-                gameState.npcsPresent = ['Стражник'];
+                gameState.stats.princess.npcsPresent = ['Стражник'];
 
                 const result = gameLogic.createOutfitSwapRequest(roomId, 'player1', 'princess');
 
@@ -122,7 +124,7 @@ describe('CoopGameLogic', () => {
                 // Проверяем, что одежда поменялась
                 const gameData = gameLogic.getGameData(roomId);
                 expect(gameData.stats.princess.outfit).toBe('common_dress');
-                expect(gameData.stats.helper.outfit).toBe('nightgown');
+                expect(gameData.stats.helper.outfit).toBe('princess_dress');
             });
 
             test('должна отклонить запрос', () => {
@@ -137,7 +139,7 @@ describe('CoopGameLogic', () => {
                 
                 // Проверяем, что одежда НЕ поменялась
                 const gameData = gameLogic.getGameData(roomId);
-                expect(gameData.stats.princess.outfit).toBe('nightgown');
+                expect(gameData.stats.princess.outfit).toBe('princess_dress');
                 expect(gameData.stats.helper.outfit).toBe('common_dress');
             });
 
@@ -156,17 +158,19 @@ describe('CoopGameLogic', () => {
         describe('canSwitchOutfits', () => {
             test('должна разрешать смену одежды когда нет NPC', () => {
                 const gameState = gameLogic.games.get(roomId);
-                gameState.npcsPresent = [];
+                gameState.stats.princess.npcsPresent = [];
+                gameState.stats.helper.npcsPresent = [];
 
-                const canSwitch = gameLogic.canSwitchOutfits(gameState);
+                const canSwitch = gameLogic.canSwitchOutfits(gameState, 'princess');
                 expect(canSwitch).toBe(true);
             });
 
             test('не должна разрешать смену одежды когда есть NPC', () => {
                 const gameState = gameLogic.games.get(roomId);
-                gameState.npcsPresent = ['Король', 'Стражник'];
+                gameState.stats.princess.npcsPresent = ['Король', 'Стражник'];
+                gameState.stats.helper.npcsPresent = [];
 
-                const canSwitch = gameLogic.canSwitchOutfits(gameState);
+                const canSwitch = gameLogic.canSwitchOutfits(gameState, 'princess');
                 expect(canSwitch).toBe(false);
             });
         });
@@ -246,7 +250,7 @@ describe('CoopGameLogic', () => {
                 const helperChoices = gameLogic.getChoicesForCharacter(gameState, 'helper', sceneData);
 
                 expect(princessChoices.length).toBeGreaterThan(0);
-                expect(helperChoices.filter(c => !c.isOutfitRequest).length).toBe(0);
+                expect(helperChoices.filter(c => !c.isOutfitRequest && !c.isMovement).length).toBe(0);
             });
 
             test('должна добавлять кнопку смены одежды когда нет NPC', () => {
@@ -285,9 +289,36 @@ describe('CoopGameLogic', () => {
             const throneRoomNpcs = gameLogic.getNPCsForLocation('throne_room');
             const chamberNpcs = gameLogic.getNPCsForLocation('princess_chamber');
 
-            expect(throneRoomNpcs).toContain('Король');
-            expect(throneRoomNpcs).toContain('Королева');
+            expect(throneRoomNpcs).toContain('Королевский советник Эдвард');
+            expect(throneRoomNpcs).toContain('Капитан стражи Рейнальд');
             expect(chamberNpcs).toEqual([]);
+        });
+
+        test('должна создавать выборы взаимодействия с NPC', () => {
+            // Создаем новую игру для этого теста
+            gameLogic.startGame(roomId, players);
+            const gameState = gameLogic.games.get(roomId);
+            gameState.stats.princess.location = 'throne_room';
+            gameState.stats.princess.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
+
+            const choices = gameLogic.getNPCInteractionChoices(gameState, 'princess');
+            
+            expect(choices.length).toBeGreaterThan(0);
+            expect(choices.some(c => c.isNPCInteraction)).toBe(true);
+            expect(choices.some(c => c.npcId === 'royal_advisor')).toBe(true);
+        });
+
+        test('должна обрабатывать взаимодействие с NPC', () => {
+            // Создаем новую игру для этого теста
+            gameLogic.startGame(roomId, players);
+            const gameState = gameLogic.games.get(roomId);
+            gameState.stats.princess.location = 'throne_room';
+            
+            const result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            
+            expect(result.success).toBe(true);
+            expect(gameState.currentNPCDialogue).toBeDefined();
+            expect(gameState.currentNPCDialogue.npcName).toBe('Королевский советник Эдвард');
         });
     });
 });

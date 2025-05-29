@@ -6,6 +6,7 @@ const CoopGame = {
     oninit(vnode) {
         this.app = vnode.attrs.app;
         this.chatVisible = false;
+        this.dialogueProcessing = false; // Флаг для предотвращения двойных кликов
         
         // Setup socket listeners
         this.setupSocketListeners();
@@ -27,6 +28,7 @@ const CoopGame = {
         socket.off('chat-message');
         socket.off('outfit-request-created');
         socket.off('outfit-request-resolved');
+        socket.off('game-state-updated');
     },
 
     setupSocketListeners() {
@@ -44,6 +46,13 @@ const CoopGame = {
 
         socket.on('outfit-request-resolved', (data) => {
             this.handleOutfitRequestResolved(data);
+            m.redraw();
+        });
+
+        socket.on('game-state-updated', (data) => {
+            // Сбрасываем флаг обработки диалога при получении обновления состояния
+            this.dialogueProcessing = false;
+            this.app.screenData = data;
             m.redraw();
         });
     },
@@ -219,32 +228,127 @@ const CoopGame = {
         if (!isMyRole) {
             if (hasChoices) {
                 const outfitChoices = choices.filter(choice => choice.isOutfitRequest);
-                if (outfitChoices.length > 0) {
-                    return [
+                const movementChoices = choices.filter(choice => choice.isMovement);
+                
+                return [
+                    outfitChoices.length > 0 && [
                         m('.other-player-actions', '🔄 Можете предложить:'),
                         outfitChoices.map(choice => this.renderChoiceButton(choice, character, vnode))
-                    ];
-                }
+                    ],
+                    movementChoices.length > 0 && m('div.mt-2', [
+                        m('.choice-section-header', '🚶 Ожидание перемещения:'),
+                        m('em', 'Другой игрок выбирает куда идти...')
+                    ])
+                ];
             }
             return m('em', 'Ожидание действий другого игрока...');
         } else {
             if (hasChoices) {
                 const outfitChoices = choices.filter(choice => choice.isOutfitRequest);
-                const actionChoices = choices.filter(choice => !choice.isOutfitRequest);
+                const movementChoices = choices.filter(choice => choice.isMovement);
+                const npcChoices = choices.filter(choice => choice.isNPCInteraction);
+                const actionChoices = choices.filter(choice => !choice.isOutfitRequest && !choice.isMovement && !choice.isNPCInteraction);
                 
                 return [
                     actionChoices.length > 0 && m('div', [
                         m('.choice-section-header', '⚡ Ваши действия:'),
                         actionChoices.map(choice => this.renderChoiceButton(choice, character, vnode))
                     ]),
+                    npcChoices.length > 0 && m('div.mt-2', [
+                        m('.choice-section-header', '💬 Поговорить:'),
+                        npcChoices.map(choice => this.renderChoiceButton(choice, character, vnode))
+                    ]),
                     outfitChoices.length > 0 && m('div.mt-2', [
                         m('.choice-section-header', '👗 Смена одежды:'),
                         outfitChoices.map(choice => this.renderChoiceButton(choice, character, vnode))
+                    ]),
+                    movementChoices.length > 0 && m('div.mt-2', [
+                        m('.choice-section-header', '🚶 Перемещение:'),
+                        movementChoices.map(choice => this.renderChoiceButton(choice, character, vnode))
                     ])
                 ];
             }
             return m('em', 'Обдумываете следующий шаг...');
         }
+    },
+
+    renderNPCDialogue(vnode) {
+        const gameData = this.getGameData(vnode);
+        const dialogue = gameData.currentNPCDialogue;
+        const playerRole = this.getPlayerRole(vnode);
+        
+        // Показываем диалог только тому игроку, который его начал
+        if (!dialogue || dialogue.activeCharacter !== playerRole) return null;
+        
+        const attitudeClass = dialogue.attitude === 'hostile' ? 'danger' : 'success';
+        
+        return [
+            // Полупрозрачный фон
+            m('.npc-dialogue-overlay', {
+                style: 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 999;',
+                onclick: (e) => e.stopPropagation() // Предотвращаем закрытие при клике на фон
+            }),
+            // Само диалоговое окно
+            m('.npc-dialogue-modal', {
+                style: 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 500px; z-index: 1000; border-radius: 12px; padding: 25px;'
+            }, [
+                m('h3', { class: `text-${attitudeClass}` }, dialogue.npcName),
+                m('.npc-greeting', dialogue.greeting),
+                m('.npc-choices', dialogue.choices.map(choice => 
+                    m('button.btn.btn-primary', {
+                        style: 'display: block; width: 100%; margin: 12px 0; padding: 12px;',
+                        onclick: () => this.respondToNPCDialogue(choice.id, playerRole, vnode),
+                        disabled: gameData.currentTurn !== playerRole || this.dialogueProcessing
+                    }, choice.text)
+                )),
+                // Кнопка закрытия диалога
+                m('button.btn.btn-secondary', {
+                    style: 'margin-top: 15px; padding: 8px 16px;',
+                    onclick: () => this.closeNPCDialogue(vnode),
+                    disabled: this.dialogueProcessing
+                }, '❌ Закрыть диалог')
+            ])
+        ];
+    },
+
+    closeNPCDialogue(vnode) {
+        const gameData = this.getGameData(vnode);
+        
+        // Проверяем, что диалог все еще активен и не обрабатывается
+        if (!gameData.currentNPCDialogue || this.dialogueProcessing) {
+            return;
+        }
+        
+        this.dialogueProcessing = true;
+        
+        // Отправляем запрос на закрытие диалога
+        this.app.socketManager.socket.emit('close-npc-dialogue');
+        
+        // Сбрасываем флаг через короткое время
+        setTimeout(() => {
+            this.dialogueProcessing = false;
+        }, 1000);
+    },
+
+    respondToNPCDialogue(choiceId, character, vnode) {
+        const gameData = this.getGameData(vnode);
+        
+        // Проверяем, что диалог все еще активен и не обрабатывается
+        if (!gameData.currentNPCDialogue || this.dialogueProcessing) {
+            return;
+        }
+        
+        this.dialogueProcessing = true;
+        
+        this.app.socketManager.socket.emit('npc-dialogue-choice', {
+            choiceId: choiceId,
+            character: character
+        });
+        
+        // Сбрасываем флаг через короткое время
+        setTimeout(() => {
+            this.dialogueProcessing = false;
+        }, 1000);
     },
 
     view(vnode) {
@@ -254,7 +358,6 @@ const CoopGame = {
         }
 
         const data = gameData;
-        const npcsPresent = data.npcsPresent && data.npcsPresent.length > 0;
 
         return m('div#coop-game-screen.fade-in', [
             // Header
@@ -269,20 +372,16 @@ const CoopGame = {
                 }, '💬 Чат')
             ]),
 
+            // NPC dialogue modal
+            this.renderNPCDialogue(vnode),
+
             // Outfit request container
             m('#outfit-request-container.request-container', this.renderOutfitRequest(vnode)),
 
             // Story section
             m('.card#story-section', [
                 m('.card-header', data.scene.title),
-                m('#story-text', m.trust(data.scene.text)),
-                m('.location-info', [
-                    '📍 ', m('strong', 'Локация: '), this.getLocationName(data.location),
-                    m('br'),
-                    npcsPresent ? 
-                        ['👥 ', m('em', `Присутствуют: ${data.npcsPresent.join(', ')}`)] :
-                        ['🤫 ', m('em', 'Никого нет поблизости - можно переодеваться!')]
-                ])
+                m('#story-text', m.trust(data.scene.text))
             ]),
 
             // Player panels
@@ -293,7 +392,20 @@ const CoopGame = {
                     m('div', [
                         m('strong', 'Игрок: '), data.players.princess?.name || '-',
                         m('br'),
-                        m('strong', 'Наряд: '), this.getOutfitName(data.stats.princess?.outfit || 'nightgown')
+                        m('strong', 'Наряд: '), this.getOutfitName(data.stats.princess?.outfit || 'princess_dress'),
+                        m('br'),
+                        data.locations?.princess && [
+                            m('strong', 'Локация: '), 
+                            data.locations.princess.icon + ' ' + data.locations.princess.name
+                        ]
+                    ]),
+                    // Информация о локации княжны
+                    data.locations?.princess && m('.location-info', { style: 'margin: 10px 0; font-size: 0.9em;' }, [
+                        data.stats.princess?.npcsPresent?.length > 0 ? 
+                            ['👥 ', m('em', `Присутствуют: ${data.stats.princess.npcsPresent.join(', ')}`)] :
+                            data.locations.princess.canChangeOutfit ?
+                                ['🤫 ', m('em', 'Никого нет')] :
+                                ['👥 ', m('em', 'Публичное место')]
                     ]),
                     m('div', this.renderCharacterChoices('princess', data.choices.princess, vnode))
                 ]),
@@ -304,7 +416,20 @@ const CoopGame = {
                     m('div', [
                         m('strong', 'Игрок: '), data.players.helper?.name || '-',
                         m('br'),
-                        m('strong', 'Наряд: '), this.getOutfitName(data.stats.helper?.outfit || 'common_dress')
+                        m('strong', 'Наряд: '), this.getOutfitName(data.stats.helper?.outfit || 'common_dress'),
+                        m('br'),
+                        data.locations?.helper && [
+                            m('strong', 'Локация: '), 
+                            data.locations.helper.icon + ' ' + data.locations.helper.name
+                        ]
+                    ]),
+                    // Информация о локации помощницы
+                    data.locations?.helper && m('.location-info', { style: 'margin: 10px 0; font-size: 0.9em;' }, [
+                        data.stats.helper?.npcsPresent?.length > 0 ? 
+                            ['👥 ', m('em', `Присутствуют: ${data.stats.helper.npcsPresent.join(', ')}`)] :
+                            data.locations.helper.canChangeOutfit ?
+                                ['🤫 ', m('em', 'Никого нет')] :
+                                ['👥 ', m('em', 'Публичное место')]
                     ]),
                     m('div', this.renderCharacterChoices('helper', data.choices.helper, vnode))
                 ])
