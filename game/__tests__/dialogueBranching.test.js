@@ -31,7 +31,7 @@ describe('Branching Dialogue System', () => {
             let result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
             expect(result.success).toBe(true);
             
-            const firstMeetingGreeting = gameState.currentNPCDialogue.greeting;
+            const firstMeetingGreeting = gameState.npcDialogues.princess.greeting;
             expect(firstMeetingGreeting).toContain('Рад видеть вас в добром здравии');
             
             // Делаем выбор, который добавит память
@@ -44,7 +44,7 @@ describe('Branching Dialogue System', () => {
             result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
             expect(result.success).toBe(true);
             
-            const returnGreeting = gameState.currentNPCDialogue.greeting;
+            const returnGreeting = gameState.npcDialogues.princess.greeting;
             expect(returnGreeting).toContain('Снова приветствую вас');
             expect(returnGreeting).not.toBe(firstMeetingGreeting);
         });
@@ -63,16 +63,16 @@ describe('Branching Dialogue System', () => {
             // Взаимодействие в простом платье - должен показать диалог для простолюдина
             let result = gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
             expect(result.success).toBe(true);
-            expect(gameState.currentNPCDialogue.greeting).toContain('милая!');
+            expect(gameState.npcDialogues.princess.greeting).toContain('милая!');
             
             // Возвращаемся в княжеское платье
             gameState.stats.princess.outfit = 'princess_dress';
-            gameState.currentNPCDialogue = null;
+            gameState.npcDialogues.princess = null;
             
             // Взаимодействие в княжеском платье - должен помнить предыдущее взаимодействие
             result = gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
             expect(result.success).toBe(true);
-            expect(gameState.currentNPCDialogue.greeting).toContain('Снова изволите меня посетить');
+            expect(gameState.npcDialogues.princess.greeting).toContain('Снова изволите меня посетить');
         });
 
         test('должен показывать выборы на основе памяти', () => {
@@ -87,7 +87,7 @@ describe('Branching Dialogue System', () => {
             gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
             
             // Должен появиться выбор, который требует предыдущего разговора о королевстве
-            const kingdomChoice = gameState.currentNPCDialogue.choices.find(c => c.id === 'continue_kingdom');
+            const kingdomChoice = gameState.npcDialogues.princess.choices.find(c => c.id === 'continue_kingdom');
             expect(kingdomChoice).toBeDefined();
             expect(kingdomChoice.text).toContain('Ещё о делах королевства');
         });
@@ -109,11 +109,11 @@ describe('Branching Dialogue System', () => {
             expect(result.hasFollowUp).toBe(true);
             
             // Диалог должен остаться активным с новыми выборами
-            expect(gameState.currentNPCDialogue).not.toBeNull();
-            expect(gameState.currentNPCDialogue.isFollowUp).toBe(true);
+            expect(gameState.npcDialogues.princess).not.toBeNull();
+            expect(gameState.npcDialogues.princess.isFollowUp).toBe(true);
             
             // Должен быть доступен дополнительный выбор
-            const followUpChoice = gameState.currentNPCDialogue.choices.find(c => c.id === 'learn_about_herbs');
+            const followUpChoice = gameState.npcDialogues.princess.choices.find(c => c.id === 'learn_about_herbs');
             expect(followUpChoice).toBeDefined();
             expect(followUpChoice.text).toContain('Узнать о травах');
         });
@@ -128,10 +128,10 @@ describe('Branching Dialogue System', () => {
             let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'see_roses', 'princess');
             
             expect(result.hasFollowUp).toBe(true);
-            expect(gameState.currentNPCDialogue.isFollowUp).toBe(true);
+            expect(gameState.npcDialogues.princess.isFollowUp).toBe(true);
             
             // Проверяем, что есть дополнительный выбор
-            const followUpChoice = gameState.currentNPCDialogue.choices.find(c => c.id === 'learn_about_herbs');
+            const followUpChoice = gameState.npcDialogues.princess.choices.find(c => c.id === 'learn_about_herbs');
             expect(followUpChoice).toBeDefined();
             
             // Делаем дополнительный выбор
@@ -141,7 +141,7 @@ describe('Branching Dialogue System', () => {
             expect(result.hasFollowUp).toBeFalsy();
             
             // Диалог должен завершиться
-            expect(gameState.currentNPCDialogue).toBeNull();
+            expect(gameState.npcDialogues.princess).toBeNull();
         });
 
         test('должен применять эффекты из основного выбора', () => {
@@ -216,7 +216,7 @@ describe('Branching Dialogue System', () => {
             
             // Второе взаимодействие должно показать диалог возвращения
             gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-            expect(gameState.currentNPCDialogue.greeting).toContain('вернулась');
+            expect(gameState.npcDialogues.princess.greeting).toContain('вернулась');
         });
 
         test('должен работать независимо для разных персонажей', () => {
@@ -232,8 +232,8 @@ describe('Branching Dialogue System', () => {
             
             // Взаимодействие помощницы - должно быть первое знакомство
             gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
-            expect(gameState.currentNPCDialogue.greeting).toContain('Проголодалась?');
-            expect(gameState.currentNPCDialogue.greeting).not.toContain('вернулась');
+            expect(gameState.npcDialogues.helper.greeting).toContain('Проголодалась?');
+            expect(gameState.npcDialogues.helper.greeting).not.toContain('вернулась');
             
             // Проверяем, что память разная
             expect(gameState.npcMemory.princess.cook.common.ate_together).toBe(true);

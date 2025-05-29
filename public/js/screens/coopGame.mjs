@@ -335,11 +335,13 @@ const CoopGame = {
 
     renderNPCDialogue(vnode) {
         const gameData = this.getGameData(vnode);
-        const dialogue = gameData.currentNPCDialogue;
         const playerRole = this.getPlayerRole(vnode);
         
-        // Показываем диалог только тому игроку, который его начал
-        if (!dialogue || dialogue.activeCharacter !== playerRole) return null;
+        // Получаем диалог для текущего игрока
+        const dialogue = gameData.npcDialogues && gameData.npcDialogues[playerRole];
+        
+        // Показываем диалог только если он есть для данного игрока
+        if (!dialogue) return null;
         
         const attitudeClass = dialogue.attitude === 'hostile' ? 'danger' : 'success';
         
@@ -374,9 +376,10 @@ const CoopGame = {
 
     closeNPCDialogue(vnode) {
         const gameData = this.getGameData(vnode);
+        const playerRole = this.getPlayerRole(vnode);
         
         // Проверяем, что диалог все еще активен и не обрабатывается
-        if (!gameData.currentNPCDialogue || this.dialogueProcessing) {
+        if (!gameData.npcDialogues[playerRole] || this.dialogueProcessing) {
             return;
         }
         
@@ -395,7 +398,7 @@ const CoopGame = {
         const gameData = this.getGameData(vnode);
         
         // Проверяем, что диалог все еще активен и не обрабатывается
-        if (!gameData.currentNPCDialogue || this.dialogueProcessing) {
+        if (!gameData.npcDialogues[character] || this.dialogueProcessing) {
             return;
         }
         

@@ -24,7 +24,7 @@ const questActionHandlers = {
     },
 
     'progress_quest': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'librarian' && character === 'princess') {
             gameLogic.updateQuestProgress(gameState, character, 'search_library');
             return true;
@@ -33,7 +33,7 @@ const questActionHandlers = {
     },
 
     'progress_herb_quest': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'herbalist') {
             gameLogic.updateQuestProgress(gameState, character, 'find_herbalist');
             return true;
@@ -42,7 +42,7 @@ const questActionHandlers = {
     },
 
     'complete_archive_step': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'librarian' && character === 'princess') {
             gameLogic.updateQuestProgress(gameState, character, 'talk_to_librarian');
             return true;
@@ -51,7 +51,7 @@ const questActionHandlers = {
     },
 
     'complete_princess_quest': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'royal_advisor' && character === 'princess') {
             gameLogic.updateQuestProgress(gameState, character, 'return_to_advisor');
             return true;
@@ -60,7 +60,7 @@ const questActionHandlers = {
     },
 
     'complete_herb_collection': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'herbalist') {
             gameLogic.updateQuestProgress(gameState, character, 'talk_to_herbalist');
             return true;
@@ -69,7 +69,7 @@ const questActionHandlers = {
     },
 
     'complete_helper_quest': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'cook') {
             gameLogic.updateQuestProgress(gameState, character, 'return_to_cook');
             return true;
@@ -99,7 +99,7 @@ const legacyHandlers = {
     },
 
     'start_quest': (gameState, character, gameLogic) => {
-        const npcId = gameState.currentNPCDialogue?.npcId;
+        const npcId = gameState.npcDialogues?.[character]?.npcId;
         if (npcId === 'librarian' && character === 'princess') {
             gameLogic.updateQuestProgress(gameState, character, 'talk_to_librarian');
             return true;

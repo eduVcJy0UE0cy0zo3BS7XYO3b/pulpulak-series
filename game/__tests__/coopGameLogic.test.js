@@ -317,8 +317,8 @@ describe('CoopGameLogic', () => {
             const result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
             
             expect(result.success).toBe(true);
-            expect(gameState.currentNPCDialogue).toBeDefined();
-            expect(gameState.currentNPCDialogue.npcName).toBe('Королевский советник Эдвард');
+            expect(gameState.npcDialogues.princess).toBeDefined();
+            expect(gameState.npcDialogues.princess.npcName).toBe('Королевский советник Эдвард');
         });
     });
 });

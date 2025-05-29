@@ -21,7 +21,12 @@ class GameStateManager {
             stats: this.createInitialStats(),
             npcMemory: this.createInitialNPCMemory(),
             quests: this.createInitialQuests(),
-            globalQuestMemory: this.createInitialGlobalQuestMemory()
+            globalQuestMemory: this.createInitialGlobalQuestMemory(),
+            // Индивидуальные диалоги для каждого персонажа
+            npcDialogues: {
+                princess: null,
+                helper: null
+            }
         };
     }
 

@@ -62,7 +62,7 @@ describe('Полный цикл прохождения квестов с пер�
         gameState.stats.princess.location = 'throne_room';
         
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
-        let dialogue = gameLogic.getGameData(roomId).currentNPCDialogue;
+        let dialogue = gameLogic.getGameData(roomId).npcDialogues.princess;
         expect(dialogue.choices.some(c => c.text.includes('находках'))).toBe(true);
         
         result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'report_relic_findings', 'princess');
@@ -97,7 +97,7 @@ describe('Полный цикл прохождения квестов с пер�
         gameState.stats.princess.location = 'kitchen';
         
         gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-        dialogue = gameLogic.getGameData(roomId).currentNPCDialogue;
+        dialogue = gameLogic.getGameData(roomId).npcDialogues.princess;
         expect(dialogue.choices.some(c => c.text.includes('травах'))).toBe(true);
         
         result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_herbs', 'princess');
@@ -136,7 +136,7 @@ describe('Полный цикл прохождения квестов с пер�
         gameState.stats.princess.location = 'kitchen';
         
         gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-        dialogue = gameLogic.getGameData(roomId).currentNPCDialogue;
+        dialogue = gameLogic.getGameData(roomId).npcDialogues.princess;
         expect(dialogue.choices.some(c => c.text.includes('информацию о редких травах'))).toBe(true);
         
         result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'report_herb_findings', 'princess');
@@ -173,7 +173,7 @@ describe('Полный цикл прохождения квестов с пер�
         
         gameState.stats.helper.location = 'throne_room';
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'helper');
-        dialogue = gameLogic.getGameData(roomId).currentNPCDialogue;
+        dialogue = gameLogic.getGameData(roomId).npcDialogues.helper;
         
         // Квест реликвии не должен быть доступен
         expect(dialogue.choices.some(c => c.text.includes('реликвии'))).toBe(false);
@@ -194,7 +194,7 @@ describe('Полный цикл прохождения квестов с пер�
         gameState.stats.helper.location = 'kitchen';
         
         gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
-        dialogue = gameLogic.getGameData(roomId).currentNPCDialogue;
+        dialogue = gameLogic.getGameData(roomId).npcDialogues.helper;
         
         // Квест зелья не должен быть доступен
         expect(dialogue.choices.some(c => c.text.includes('лечебных травах'))).toBe(false);

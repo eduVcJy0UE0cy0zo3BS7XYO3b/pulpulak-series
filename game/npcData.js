@@ -68,6 +68,14 @@ const NPCs = {
                             ]
                         },
                         {
+                            id: 'ask_about_relic',
+                            text: 'Спросить о пропавшей реликвии',
+                            response: 'Ах, да! Древний амулет пропал из сокровищницы. Мне нужна ваша помощь, ваше высочество. Начните с библиотеки - там работает учёный Марк.',
+                            unlocks: 'relic_quest_given',
+                            quest_action: 'start_noble_quest',
+                            requires_not: 'relic_quest_given'
+                        },
+                        {
                             id: 'new_topic',
                             text: 'Поговорить о чём-то новом',
                             response: 'О чём бы вы хотели поговорить, ваше высочество?',

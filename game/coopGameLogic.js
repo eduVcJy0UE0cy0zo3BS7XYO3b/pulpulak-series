@@ -372,7 +372,11 @@ class CoopGameLogic {
                 helper: helperLocationInfo
             },
             activeOutfitRequest: this.getActiveOutfitRequest(roomId), // Информация о запросе
-            currentNPCDialogue: gameState.currentNPCDialogue || null, // Информация о текущем диалоге с NPC
+            // Индивидуальные диалоги для каждого персонажа
+            npcDialogues: {
+                princess: gameState.npcDialogues?.princess || null,
+                helper: gameState.npcDialogues?.helper || null
+            },
             // Информация о квестах
             quests: {
                 princess: {
@@ -522,8 +526,8 @@ class CoopGameLogic {
             return { success: false, message: "Диалог не найден" };
         }
 
-        // Сохраняем информацию о текущем диалоге
-        gameState.currentNPCDialogue = {
+        // Сохраняем информацию о диалоге для конкретного персонажа
+        gameState.npcDialogues[character] = {
             npcId: npcId,
             npcName: npc.name,
             greeting: dialogue.greeting,
@@ -560,12 +564,12 @@ class CoopGameLogic {
             return { success: false, message: "Вы управляете другим персонажем" };
         }
 
-        // Проверяем, что есть активный диалог
-        if (!gameState.currentNPCDialogue) {
+        // Проверяем, что есть активный диалог для данного персонажа
+        if (!gameState.npcDialogues[character]) {
             return { success: false, message: "Нет активного диалога" };
         }
 
-        const npcId = gameState.currentNPCDialogue.npcId;
+        const npcId = gameState.npcDialogues[character].npcId;
         const outfit = gameState.stats[character].outfit;
 
         // Получаем память NPC для этого персонажа
@@ -574,8 +578,8 @@ class CoopGameLogic {
         }
 
         // Обрабатываем выбор через NPCData
-        const isFollowUp = gameState.currentNPCDialogue.isFollowUp || false;
-        const currentChoices = isFollowUp ? gameState.currentNPCDialogue.choices : [];
+        const isFollowUp = gameState.npcDialogues[character].isFollowUp || false;
+        const currentChoices = isFollowUp ? gameState.npcDialogues[character].choices : [];
         
         const result = NPCData.processDialogueChoice(
             npcId, 
@@ -607,13 +611,13 @@ class CoopGameLogic {
         this.processQuestAction(gameState, character, choiceId, result);
 
         // Сохраняем attitude до очистки диалога
-        const attitude = gameState.currentNPCDialogue?.attitude;
+        const attitude = gameState.npcDialogues[character]?.attitude;
 
         // Если есть дополнительные выборы, показываем их
         if (result.next_choices && result.next_choices.length > 0) {
-            gameState.currentNPCDialogue.choices = result.next_choices;
-            gameState.currentNPCDialogue.greeting = result.response;
-            gameState.currentNPCDialogue.isFollowUp = true;
+            gameState.npcDialogues[character].choices = result.next_choices;
+            gameState.npcDialogues[character].greeting = result.response;
+            gameState.npcDialogues[character].isFollowUp = true;
 
             return { 
                 success: true, 
@@ -622,8 +626,8 @@ class CoopGameLogic {
                 hasFollowUp: true
             };
         } else {
-            // Очищаем текущий диалог
-            gameState.currentNPCDialogue = null;
+            // Очищаем диалог для данного персонажа
+            gameState.npcDialogues[character] = null;
 
             // Меняем очередь хода
             this.switchTurn(gameState);
@@ -643,21 +647,26 @@ class CoopGameLogic {
             return { success: false, message: "Игра не найдена" };
         }
 
-        // Проверяем, что есть активный диалог и игрок может его закрыть
-        if (!gameState.currentNPCDialogue) {
+        // Находим персонажа, который принадлежит данному игроку
+        let character = null;
+        for (const [char, player] of Object.entries(gameState.players)) {
+            if (player && player.id === playerId) {
+                character = char;
+                break;
+            }
+        }
+
+        if (!character) {
+            return { success: false, message: "Игрок не найден" };
+        }
+
+        // Проверяем, что есть активный диалог для данного персонажа
+        if (!gameState.npcDialogues[character]) {
             return { success: false, message: "Нет активного диалога" };
         }
 
-        // Проверяем, что игрок может закрыть диалог (тот, кто его начал)
-        const activeCharacter = gameState.currentNPCDialogue.activeCharacter;
-        const playerCharacter = gameState.players[activeCharacter];
-        
-        if (!playerCharacter || playerCharacter.id !== playerId) {
-            return { success: false, message: "Вы не можете закрыть этот диалог" };
-        }
-
-        // Закрываем диалог
-        gameState.currentNPCDialogue = null;
+        // Закрываем диалог для данного персонажа
+        gameState.npcDialogues[character] = null;
 
         return { 
             success: true, 
