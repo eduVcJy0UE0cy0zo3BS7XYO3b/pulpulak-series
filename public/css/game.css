@@ -68,6 +68,17 @@
     margin-bottom: 20px;
 }
 
+.single-player-layout {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.single-player-layout .player-panel {
+    max-width: 600px;
+    width: 100%;
+}
+
 .player-panel {
     background: rgba(244, 241, 232, 0.95);
     color: var(--text-dark);

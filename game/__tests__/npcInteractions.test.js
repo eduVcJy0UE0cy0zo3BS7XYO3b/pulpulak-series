@@ -92,7 +92,14 @@ describe('NPC Interactions', () => {
             
             expect(result.success).toBe(true);
             expect(result.message).toBeDefined();
-            expect(gameState.currentNPCDialogue).toBeNull();
+            
+            // У royal_advisor первые выборы имеют follow-up опции, поэтому диалог может остаться активным
+            if (result.hasFollowUp) {
+                expect(gameState.currentNPCDialogue).not.toBeNull();
+                expect(gameState.currentNPCDialogue.isFollowUp).toBe(true);
+            } else {
+                expect(gameState.currentNPCDialogue).toBeNull();
+            }
         });
 
         test('должен сохранять информацию о том, кто ведет диалог', () => {

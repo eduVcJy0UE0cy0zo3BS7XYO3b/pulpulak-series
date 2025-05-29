@@ -18,7 +18,7 @@ const locations = {
     corridor_upper: {
         name: 'Верхний коридор',
         description: 'Длинный коридор второго этажа замка. Отсюда можно попасть в различные комнаты.',
-        connections: ['princess_chamber', 'throne_room', 'stairs_main'],
+        connections: ['princess_chamber', 'throne_room', 'stairs_main', 'library'],
         canChangeOutfit: false,
         icon: '🏛️'
     },
@@ -50,7 +50,7 @@ const locations = {
     corridor_lower: {
         name: 'Нижний коридор',
         description: 'Коридор первого этажа. Отсюда можно попасть в служебные помещения.',
-        connections: ['stairs_main', 'kitchen', 'garden', 'armory'],
+        connections: ['stairs_main', 'kitchen', 'garden', 'armory', 'chapel'],
         canChangeOutfit: false,
         icon: '🏛️'
     },
@@ -74,7 +74,7 @@ const locations = {
     garden: {
         name: 'Сад',
         description: 'Прекрасный сад с цветущими розами и уютными беседками. Свежий воздух и пение птиц.',
-        connections: ['corridor_lower', 'secret_garden'],
+        connections: ['corridor_lower', 'secret_garden', 'greenhouse'],
         canChangeOutfit: true, // На открытом воздухе, но уединенно
         icon: '🌹'
     },
@@ -101,6 +101,38 @@ const locations = {
         connections: ['armory'],
         canChangeOutfit: false,
         icon: '🎯'
+    },
+
+    chapel: {
+        name: 'Часовня',
+        description: 'Тихое место для молитв и размышлений. Цветные витражи создают мистическую атмосферу.',
+        connections: ['corridor_lower'],
+        canChangeOutfit: true,
+        icon: '⛪'
+    },
+
+    library: {
+        name: 'Библиотека',
+        description: 'Большая библиотека с множеством древних книг и свитков. Высокие полки тянутся до потолка.',
+        connections: ['corridor_upper', 'secret_archive'],
+        canChangeOutfit: false,
+        icon: '📚'
+    },
+
+    secret_archive: {
+        name: 'Секретный архив',
+        description: 'Скрытая комната за библиотекой. Здесь хранятся самые древние и ценные документы.',
+        connections: ['library'],
+        canChangeOutfit: true,
+        icon: '📜'
+    },
+
+    greenhouse: {
+        name: 'Теплица',
+        description: 'Стеклянная теплица полная экзотических растений. Тепло и влажно, множество редких трав.',
+        connections: ['garden'],
+        canChangeOutfit: true,
+        icon: '🌱'
     }
 };
 
