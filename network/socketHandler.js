@@ -252,6 +252,71 @@ class SocketHandler {
 		}
             });
 	    
+            // Ответ на диалог с NPC
+            socket.on('npc-dialogue-choice', (data) => {
+                try {
+                    const roomId = this.playerRooms.get(socket.id);
+                    if (!roomId) {
+                        socket.emit('error', 'Вы не находитесь в игре');
+                        return;
+                    }
+
+                    const room = this.rooms.get(roomId);
+                    if (!room || room.gameState !== 'playing') {
+                        socket.emit('error', 'Игра не найдена или не началась');
+                        return;
+                    }
+
+                    console.log(`💬 Выбор в диалоге NPC от ${socket.id}: ${data.choiceId}`);
+
+                    // Обрабатываем выбор в диалоге
+                    const result = this.gameLogic.processNPCDialogueChoice(roomId, socket.id, data.choiceId, data.character);
+                    
+                    if (result.success) {
+                        const updatedGameData = this.gameLogic.getGameData(roomId);
+                        this.io.to(roomId).emit('game-state-updated', updatedGameData);
+                        
+                        if (result.message) {
+                            this.io.to(roomId).emit('game-message', {
+                                type: result.type || 'info',
+                                message: result.message
+                            });
+                        }
+                    } else {
+                        socket.emit('error', result.message);
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка обработки диалога NPC:', error);
+                    socket.emit('error', 'Не удалось обработать выбор');
+                }
+            });
+
+            // Закрытие диалога с NPC
+            socket.on('close-npc-dialogue', () => {
+                try {
+                    const roomId = this.playerRooms.get(socket.id);
+                    if (!roomId) {
+                        socket.emit('error', 'Вы не находитесь в игре');
+                        return;
+                    }
+
+                    console.log(`💬 Закрытие диалога NPC от ${socket.id}`);
+
+                    // Закрываем диалог
+                    const result = this.gameLogic.closeNPCDialogue(roomId, socket.id);
+                    
+                    if (result.success) {
+                        const updatedGameData = this.gameLogic.getGameData(roomId);
+                        this.io.to(roomId).emit('game-state-updated', updatedGameData);
+                    } else {
+                        socket.emit('error', result.message);
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка закрытия диалога NPC:', error);
+                    socket.emit('error', 'Не удалось закрыть диалог');
+                }
+            });
+            
             // Покидание комнаты
             socket.on('leave-room', (roomId) => {
                 this.handlePlayerLeave(socket, roomId);
