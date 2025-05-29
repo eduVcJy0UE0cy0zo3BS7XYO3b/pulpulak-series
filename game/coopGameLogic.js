@@ -2,70 +2,47 @@ const CoopStoryData = require('./coopStoryData');
 const LocationData = require('./locationData');
 const NPCData = require('./npcData');
 const QuestData = require('./questData');
+const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./constants');
+const { processQuestAction } = require('./questActionHandlers');
+const GameStateManager = require('./gameStateManager');
 
 class CoopGameLogic {
     constructor() {
         this.games = new Map(); // roomId -> gameState
         this.outfitRequests = new Map(); // roomId -> activeRequest
+        this.stateManager = new GameStateManager();
     }
 
     // Запуск игры
     startGame(roomId, players) {
-        const gameState = {
-            roomId: roomId,
-            players: players,
-            currentScene: 'coop_awakening',
-            turnOrder: 'princess', 
-            chapter: 1,
-            // Убираем общую локацию, теперь у каждого своя
-            stats: {
-                princess: {
-                    outfit: 'princess_dress', // Княжна начинает в княжеском платье
-                    awareness: 0,
-                    loyalty: {},
-                    inventory: [],
-                    location: 'princess_chamber', // Индивидуальная локация
-                    npcsPresent: [] // Индивидуальные NPC
-                },
-                helper: {
-                    outfit: 'common_dress',
-                    awareness: 0,
-                    secrets_revealed: 0,
-                    inventory: ['translation_earrings', 'voice_medallion'],
-                    location: 'princess_chamber', // Начинают вместе
-                    npcsPresent: [] // Индивидуальные NPC
-                }
-            },
-            // Память NPC для каждого персонажа
-            npcMemory: {
-                princess: {}, // npcId -> memory object
-                helper: {}
-            },
-            // Система квестов для каждого персонажа
-            quests: {
-                princess: {
-                    active: null, // Текущий активный квест
-                    completed: [] // Завершённые квесты
-                },
-                helper: {
-                    active: null,
-                    completed: []
-                }
-            },
-            // Глобальная память о взятых квестах (чтобы избежать дублирования)
-            globalQuestMemory: {
-                princess_lost_relic: false, // Взят ли квест реликвии
-                helper_secret_potion: false // Взят ли квест зелья
+        try {
+            if (!roomId || typeof roomId !== 'string') {
+                throw new Error('Неверный ID комнаты');
             }
-        };
+            if (!players || !players.princess || !players.helper) {
+                throw new Error('Недостаточно игроков для начала игры');
+            }
 
-        this.games.set(roomId, gameState);
-        
-        // Инициализируем NPC для начальных локаций
-        gameState.stats.princess.npcsPresent = this.getNPCsForLocation(gameState.stats.princess.location, gameState, 'princess');
-        gameState.stats.helper.npcsPresent = this.getNPCsForLocation(gameState.stats.helper.location, gameState, 'helper');
-        
-        return this.getGameData(roomId);
+            const gameState = this.stateManager.createInitialState(roomId, players);
+
+            this.games.set(roomId, gameState);
+            
+            // Инициализируем NPC для начальных локаций
+            try {
+                gameState.stats.princess.npcsPresent = this.getNPCsForLocation(gameState.stats.princess.location, gameState, 'princess');
+                gameState.stats.helper.npcsPresent = this.getNPCsForLocation(gameState.stats.helper.location, gameState, 'helper');
+            } catch (npcError) {
+                console.error('Ошибка при инициализации NPC:', npcError);
+                // Продолжаем с пустыми массивами NPC
+                gameState.stats.princess.npcsPresent = [];
+                gameState.stats.helper.npcsPresent = [];
+            }
+            
+            return this.getGameData(roomId);
+        } catch (error) {
+            console.error('Ошибка при запуске игры:', error);
+            throw new Error(`Не удалось запустить игру: ${error.message}`);
+        }
     }
 
     // Создать запрос на обмен одеждой
@@ -169,23 +146,35 @@ class CoopGameLogic {
 
     // Проверить, можно ли переодеваться
     canSwitchOutfits(gameState, character) {
+        const validators = [
+            () => this.hasNoNPCs(gameState, character),
+            () => this.locationAllowsOutfitChange(gameState, character),
+            () => this.playersInSameLocation(gameState, character),
+            () => this.bothPlayersHaveNoNPCs(gameState, character)
+        ];
+        
+        return validators.every(validate => validate());
+    }
+
+    hasNoNPCs(gameState, character) {
         const characterStats = gameState.stats[character];
-        
-        // Проверяем, что нет NPC у этого персонажа
-        const noNpcs = !characterStats.npcsPresent || characterStats.npcsPresent.length === 0;
-        
-        // Проверяем, что локация позволяет переодеваться
-        const locationAllows = LocationData.canChangeOutfit(characterStats.location);
-        
-        // Проверяем, что оба персонажа в одной локации (для обмена)
+        return !characterStats.npcsPresent || characterStats.npcsPresent.length === 0;
+    }
+
+    locationAllowsOutfitChange(gameState, character) {
+        const characterStats = gameState.stats[character];
+        return LocationData.canChangeOutfit(characterStats.location);
+    }
+
+    playersInSameLocation(gameState, character) {
+        const characterStats = gameState.stats[character];
         const otherCharacter = character === 'princess' ? 'helper' : 'princess';
-        const sameLocation = characterStats.location === gameState.stats[otherCharacter].location;
-        
-        // Проверяем, что у второго персонажа тоже нет NPC
-        const otherHasNoNpcs = !gameState.stats[otherCharacter].npcsPresent || 
-                              gameState.stats[otherCharacter].npcsPresent.length === 0;
-        
-        return noNpcs && locationAllows && sameLocation && otherHasNoNpcs;
+        return characterStats.location === gameState.stats[otherCharacter].location;
+    }
+
+    bothPlayersHaveNoNPCs(gameState, character) {
+        const otherCharacter = character === 'princess' ? 'helper' : 'princess';
+        return this.hasNoNPCs(gameState, otherCharacter);
     }
 
     // Получить выборы для персонажа
@@ -225,10 +214,11 @@ class CoopGameLogic {
 
     // Обработка обычных выборов (НЕ запросов одежды)
     makeChoice(roomId, playerId, choiceId, character) {
-        const gameState = this.games.get(roomId);
-        if (!gameState) {
-            return { success: false, message: "Игра не найдена" };
-        }
+        try {
+            const gameState = this.games.get(roomId);
+            if (!gameState) {
+                return { success: false, message: "Игра не найдена" };
+            }
 
         // Проверяем, что игрок управляет правильным персонажем
         const playerCharacter = gameState.players[character];
@@ -253,6 +243,13 @@ class CoopGameLogic {
         }
 
         return result;
+        } catch (error) {
+            console.error('Ошибка при обработке выбора:', error);
+            return { 
+                success: false, 
+                message: `Ошибка при выполнении действия: ${error.message}` 
+            };
+        }
     }
 
     processChoice(gameState, choiceId, character) {
@@ -398,17 +395,11 @@ class CoopGameLogic {
     }
 
     getCharacterName(character) {
-        return character === 'princess' ? 'Княжна' : 'Помощница';
+        return CHARACTER_NAMES[character] || character;
     }
 
     getOutfitName(outfitId) {
-        const outfitNames = {
-            'nightgown': 'Ночная рубашка',
-            'princess_dress': 'Княжеское платье',
-            'common_dress': 'Простое платье',
-            'court_dress': 'Придворное платье'
-        };
-        return outfitNames[outfitId] || outfitId;
+        return OUTFIT_NAMES[outfitId] || outfitId;
     }
 
     getNPCsForLocation(location, gameState = null, character = null) {
@@ -507,10 +498,11 @@ class CoopGameLogic {
 
     // Обработка взаимодействия с NPC
     processNPCInteraction(gameState, npcId, character) {
-        const npc = NPCData.getNPC(npcId);
-        if (!npc) {
-            return { success: false, message: "NPC не найден" };
-        }
+        try {
+            const npc = NPCData.getNPC(npcId);
+            if (!npc) {
+                return { success: false, message: "NPC не найден" };
+            }
 
         // Получаем наряд персонажа
         const outfit = gameState.stats[character].outfit;
@@ -546,6 +538,13 @@ class CoopGameLogic {
             showDialogue: true,
             message: `Начат диалог с ${npc.name}`
         };
+        } catch (error) {
+            console.error('Ошибка при взаимодействии с NPC:', error);
+            return { 
+                success: false, 
+                message: `Не удалось начать диалог: ${error.message}` 
+            };
+        }
     }
 
     // Обработка выбора в диалоге с NPC
@@ -770,114 +769,8 @@ class CoopGameLogic {
 
     // Обработать квестовое действие из диалога
     processQuestAction(gameState, character, choiceId, dialogueResult) {
-        // Проверяем наличие quest_action в результате диалога
-        const questAction = dialogueResult.quest_action;
-        if (questAction) {
-            // Используем quest_action из результата диалога
-            switch (questAction) {
-            case 'start_noble_quest':
-                // Квест для игрока в знатной одежде (вне зависимости от роли)
-                const outfit1 = gameState.stats[character].outfit;
-                const isNoble1 = outfit1 === 'princess_dress' || outfit1 === 'court_dress';
-                if (isNoble1 && !gameState.globalQuestMemory.princess_lost_relic) {
-                    this.startQuest(gameState, character, 'princess_lost_relic');
-                    // Автоматически завершаем первый шаг (получение квеста)
-                    this.updateQuestProgress(gameState, character, 'get_quest');
-                    // Отмечаем квест как взятый глобально
-                    gameState.globalQuestMemory.princess_lost_relic = true;
-                }
-                break;
-            case 'start_common_quest':
-                // Квест для игрока в простой одежде (вне зависимости от роли)
-                const outfit2 = gameState.stats[character].outfit;
-                const isCommon2 = outfit2 === 'common_dress' || outfit2 === 'nightgown';
-                if (isCommon2 && !gameState.globalQuestMemory.helper_secret_potion) {
-                    this.startQuest(gameState, character, 'helper_secret_potion');
-                    // Автоматически завершаем первый шаг (получение квеста)
-                    this.updateQuestProgress(gameState, character, 'get_quest');
-                    // Отмечаем квест как взятый глобально
-                    gameState.globalQuestMemory.helper_secret_potion = true;
-                }
-                break;
-            case 'progress_quest':
-                // Продвижение квеста с библиотекарем в библиотеке
-                const npcId1 = gameState.currentNPCDialogue?.npcId;
-                if (npcId1 === 'librarian' && character === 'princess') {
-                    // Продвигаем квест княжны - шаг "поиск в библиотеке"
-                    this.updateQuestProgress(gameState, character, 'search_library');
-                }
-                break;
-            case 'progress_herb_quest':
-                // Продвижение квеста с травником в саду
-                const npcId5 = gameState.currentNPCDialogue?.npcId;
-                if (npcId5 === 'herbalist') {
-                    // Продвигаем квест зелья - шаг "найти травника"
-                    this.updateQuestProgress(gameState, character, 'find_herbalist');
-                }
-                break;
-            case 'complete_archive_step':
-                // Завершение работы в архиве
-                const npcId2 = gameState.currentNPCDialogue?.npcId;
-                if (npcId2 === 'librarian' && character === 'princess') {
-                    // Продвигаем квест княжны - шаг "поговорить с библиотекарем"
-                    this.updateQuestProgress(gameState, character, 'talk_to_librarian');
-                }
-                break;
-            case 'complete_princess_quest':
-                // Завершение квеста у советника
-                const npcId3 = gameState.currentNPCDialogue?.npcId;
-                if (npcId3 === 'royal_advisor' && character === 'princess') {
-                    // Продвигаем квест княжны - финальный шаг "вернуться к советнику"
-                    this.updateQuestProgress(gameState, character, 'return_to_advisor');
-                }
-                break;
-            case 'complete_herb_collection':
-                // Сбор трав в теплице
-                const npcId6 = gameState.currentNPCDialogue?.npcId;
-                if (npcId6 === 'herbalist') {
-                    // Продвигаем квест зелья - шаг "поговорить с травником"
-                    this.updateQuestProgress(gameState, character, 'talk_to_herbalist');
-                }
-                break;
-            case 'complete_helper_quest':
-                // Завершение квеста у повара
-                const npcId4 = gameState.currentNPCDialogue?.npcId;
-                if (npcId4 === 'cook') {
-                    // Продвигаем квест помощницы - финальный шаг "вернуться к повару"
-                    this.updateQuestProgress(gameState, character, 'return_to_cook');
-                }
-                break;
-            }
-        } else {
-            // Fallback: проверяем по старому методу (choiceId)
-            switch (choiceId) {
-            case 'ask_about_relic':
-                if (character === 'princess') {
-                    this.startQuest(gameState, character, 'princess_lost_relic');
-                    // Автоматически завершаем первый шаг (получение квеста)
-                    this.updateQuestProgress(gameState, character, 'get_quest');
-                }
-                break;
-            case 'ask_about_herbs':
-                if (character === 'helper') {
-                    this.startQuest(gameState, character, 'helper_secret_potion');
-                    // Автоматически завершаем первый шаг (получение квеста)
-                    this.updateQuestProgress(gameState, character, 'get_quest');
-                }
-                break;
-            case 'start_quest':
-                // Этот ID используется и библиотекарем, и травником
-                const npcId = gameState.currentNPCDialogue?.npcId;
-                if (npcId === 'librarian' && character === 'princess') {
-                    // Продвигаем квест княжны
-                    this.updateQuestProgress(gameState, character, 'talk_to_librarian');
-                } else if (npcId === 'herbalist' && character === 'helper') {
-                    // Продвигаем квест помощницы
-                    this.updateQuestProgress(gameState, character, 'find_herbalist');
-                }
-                break;
-            }
-        }
+        // Делегируем обработку в отдельный модуль
+        processQuestAction(gameState, character, choiceId, dialogueResult, this);
     }
 }
 

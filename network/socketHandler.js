@@ -1,4 +1,5 @@
 const CoopGameLogic = require('../game/coopGameLogic');
+const gameConfig = require('../config/gameConfig');
 
 class SocketHandler {
     constructor(io) {
@@ -363,9 +364,9 @@ class SocketHandler {
     }
 
     generateRoomId() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const chars = gameConfig.ROOM_ID_CHARS;
         let result = '';
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < gameConfig.ROOM_ID_LENGTH; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
         }
         return result;

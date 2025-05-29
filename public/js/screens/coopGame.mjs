@@ -1,6 +1,7 @@
 // Mithril is loaded globally from CDN
 const m = window.m;
 import NotificationManager from '../notificationManager.mjs';
+import { OUTFIT_NAMES, CHARACTER_NAMES } from '../constants.mjs';
 
 const CoopGame = {
     oninit(vnode) {
@@ -150,13 +151,7 @@ const CoopGame = {
     },
 
     getOutfitName(outfitId) {
-        const outfitNames = {
-            'nightgown': 'Ночная рубашка',
-            'princess_dress': 'Княжеское платье',
-            'common_dress': 'Простое платье',
-            'court_dress': 'Придворное платье'
-        };
-        return outfitNames[outfitId] || outfitId;
+        return OUTFIT_NAMES[outfitId] || outfitId;
     },
 
     getLocationName(locationId) {
