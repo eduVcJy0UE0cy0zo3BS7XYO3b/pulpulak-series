@@ -26,6 +26,11 @@ class GameStateManager {
             npcDialogues: {
                 princess: null,
                 helper: null
+            },
+            // Динамические диалоги от квестовой системы
+            dynamicDialogues: {
+                princess: {},
+                helper: {}
             }
         };
     }

@@ -1,4 +1,4 @@
-const LocationData = require('../locationData');
+const LocationData = require('../data/locationDataSCM');
 
 describe('LocationData', () => {
     describe('getLocation', () => {

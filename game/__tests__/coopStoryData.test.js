@@ -1,4 +1,4 @@
-const CoopStoryData = require('../coopStoryData');
+const CoopStoryData = require('../data/coopStoryDataSCM');
 
 describe('CoopStoryData', () => {
     describe('getScene', () => {

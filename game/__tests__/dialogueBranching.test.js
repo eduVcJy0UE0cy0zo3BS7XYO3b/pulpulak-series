@@ -1,5 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
-const NPCData = require('../npcData');
+const NPCData = require('../data/npcDataSCM');
 
 describe('Branching Dialogue System', () => {
     let gameLogic;
@@ -55,7 +55,7 @@ describe('Branching Dialogue System', () => {
             
             // Первая встреча в княжеском платье
             gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-            gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_for_food', 'princess');
+            gameLogic.processNPCDialogueChoice(roomId, 'alice', 'demand_food', 'princess');
             
             // Меняем одежду на простую
             gameState.stats.princess.outfit = 'common_dress';
@@ -65,14 +65,17 @@ describe('Branching Dialogue System', () => {
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess.greeting).toContain('милая!');
             
+            // Делаем выбор чтобы создать память для common наряда
+            gameLogic.processNPCDialogueChoice(roomId, 'alice', 'accept_food', 'princess');
+            
             // Возвращаемся в княжеское платье
             gameState.stats.princess.outfit = 'princess_dress';
             gameState.npcDialogues.princess = null;
             
-            // Взаимодействие в княжеском платье - должен помнить предыдущее взаимодействие
+            // Взаимодействие в княжеском платье - должен показать return диалог, так как встречались раньше в этом наряде
             result = gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
             expect(result.success).toBe(true);
-            expect(gameState.npcDialogues.princess.greeting).toContain('Снова изволите меня посетить');
+            expect(gameState.npcDialogues.princess.greeting).toContain('чем могу служить');
         });
 
         test('должен показывать выборы на основе памяти', () => {
@@ -153,11 +156,11 @@ describe('Branching Dialogue System', () => {
             
             // Выбираем опцию, которая даёт предмет
             gameLogic.processNPCInteraction(gameState, 'gardener', 'princess');
-            gameLogic.processNPCDialogueChoice(roomId, 'alice', 'see_roses', 'princess');
+            gameLogic.processNPCDialogueChoice(roomId, 'alice', 'love_flowers', 'princess');
             
             // Проверяем, что предмет добавился
             expect(gameState.stats.princess.inventory.length).toBe(inventoryBefore + 1);
-            expect(gameState.stats.princess.inventory).toContain('healing_herbs');
+            expect(gameState.stats.princess.inventory).toContain('garden_rose');
         });
     });
 
@@ -176,12 +179,12 @@ describe('Branching Dialogue System', () => {
         test('должен возвращать разные диалоги для новых и возвращающихся персонажей', () => {
             // Первая встреча
             let dialogue = NPCData.getNPCDialogue('cook', 'common_dress', {});
-            expect(dialogue.greeting).toContain('милая! Проголодалась?');
+            expect(dialogue.greeting).toContain('милая!');
             
-            // После взаимодействия
-            const memory = { common: { ate_together: true } };
+            // После взаимодействия (любая память означает, что встречались раньше)
+            const memory = { common: { helped_cooking: true } };
             dialogue = NPCData.getNPCDialogue('cook', 'common_dress', memory);
-            expect(dialogue.greeting).toContain('моя дорогая вернулась!');
+            expect(dialogue.greeting).toContain('снова ты!');
         });
 
         test('должен фильтровать выборы на основе памяти', () => {
@@ -191,7 +194,7 @@ describe('Branching Dialogue System', () => {
             expect(moreFoodChoice).toBeUndefined();
             
             // С памятью - дополнительные выборы
-            const memory = { common: { ate_together: true } };
+            const memory = { common: { helped_cooking: true } };
             dialogue = NPCData.getNPCDialogue('cook', 'common_dress', memory);
             moreFoodChoice = dialogue.choices.find(c => c.id === 'more_food');
             expect(moreFoodChoice).toBeDefined();
@@ -216,7 +219,7 @@ describe('Branching Dialogue System', () => {
             
             // Второе взаимодействие должно показать диалог возвращения
             gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-            expect(gameState.npcDialogues.princess.greeting).toContain('вернулась');
+            expect(gameState.npcDialogues.princess.greeting).toContain('снова ты!');
         });
 
         test('должен работать независимо для разных персонажей', () => {
@@ -232,8 +235,7 @@ describe('Branching Dialogue System', () => {
             
             // Взаимодействие помощницы - должно быть первое знакомство
             gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
-            expect(gameState.npcDialogues.helper.greeting).toContain('Проголодалась?');
-            expect(gameState.npcDialogues.helper.greeting).not.toContain('вернулась');
+            expect(gameState.npcDialogues.helper.greeting).toContain('милая!');
             
             // Проверяем, что память разная
             expect(gameState.npcMemory.princess.cook.common.ate_together).toBe(true);

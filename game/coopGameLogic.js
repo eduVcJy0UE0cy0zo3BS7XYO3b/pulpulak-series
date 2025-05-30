@@ -1,16 +1,24 @@
-const CoopStoryData = require('./coopStoryData');
-const LocationData = require('./locationData');
-const NPCData = require('./npcData');
-const QuestData = require('./questData');
+const CoopStoryData = require('./data/coopStoryDataSCM');
+const LocationData = require('./data/locationDataSCM');
+const NPCData = require('./data/npcDataSCM');
+const QuestIntegration = require('./questSystem/questIntegration');
 const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./constants');
-const { processQuestAction } = require('./questActionHandlers');
 const GameStateManager = require('./gameStateManager');
+
+// Новые модули
+const OutfitSystem = require('./modules/outfitSystem');
+const SceneHandler = require('./modules/sceneHandler');
 
 class CoopGameLogic {
     constructor() {
         this.games = new Map(); // roomId -> gameState
         this.outfitRequests = new Map(); // roomId -> activeRequest
+        this.questIntegrations = new Map(); // roomId -> questIntegration
         this.stateManager = new GameStateManager();
+        
+        // Инициализируем модули
+        this.outfitSystem = new OutfitSystem();
+        this.sceneHandler = new SceneHandler(LocationData, NPCData);
     }
 
     // Запуск игры
@@ -26,6 +34,9 @@ class CoopGameLogic {
             const gameState = this.stateManager.createInitialState(roomId, players);
 
             this.games.set(roomId, gameState);
+            
+            // Инициализируем систему квестов
+            this.questIntegrations.set(roomId, new QuestIntegration(this));
             
             // Инициализируем NPC для начальных локаций
             try {
@@ -407,10 +418,7 @@ class CoopGameLogic {
     }
 
     getNPCsForLocation(location, gameState = null, character = null) {
-        // Получаем NPC из NPCData с учётом состояния игры
-        const npcs = NPCData.getNPCsForLocation(location, gameState, character);
-        // Возвращаем только имена для обратной совместимости
-        return npcs.map(npc => npc.name);
+        return this.sceneHandler.getNPCsForLocation(location, gameState, character);
     }
 
     getMovementChoices(gameState, character) {
@@ -479,6 +487,7 @@ class CoopGameLogic {
     removeGame(roomId) {
         this.games.delete(roomId);
         this.outfitRequests.delete(roomId);
+        this.questIntegrations.delete(roomId);
     }
 
     // Получить выборы взаимодействия с NPC
@@ -512,6 +521,9 @@ class CoopGameLogic {
         const outfit = gameState.stats[character].outfit;
         
         // Получаем память NPC для этого персонажа
+        if (!gameState.npcMemory[character]) {
+            gameState.npcMemory[character] = {};
+        }
         if (!gameState.npcMemory[character][npcId]) {
             gameState.npcMemory[character][npcId] = {};
         }
@@ -521,7 +533,7 @@ class CoopGameLogic {
         const currentLocation = gameState.stats[character].location;
         const questState = gameState.quests[character];
         const globalQuestMemory = gameState.globalQuestMemory;
-        const dialogue = NPCData.getNPCDialogue(npcId, outfit, npcMemory, currentLocation, questState, globalQuestMemory);
+        const dialogue = NPCData.getNPCDialogue(npcId, outfit, npcMemory, currentLocation, questState, globalQuestMemory, gameState, character);
         if (!dialogue) {
             return { success: false, message: "Диалог не найден" };
         }
@@ -573,6 +585,9 @@ class CoopGameLogic {
         const outfit = gameState.stats[character].outfit;
 
         // Получаем память NPC для этого персонажа
+        if (!gameState.npcMemory[character]) {
+            gameState.npcMemory[character] = {};
+        }
         if (!gameState.npcMemory[character][npcId]) {
             gameState.npcMemory[character][npcId] = {};
         }
@@ -588,7 +603,9 @@ class CoopGameLogic {
             gameState.npcMemory[character][npcId],
             isFollowUp,
             currentChoices,
-            gameState.stats[character].location
+            gameState.stats[character].location,
+            gameState,
+            character
         );
         if (!result) {
             return { success: false, message: "Неверный выбор" };
@@ -674,112 +691,18 @@ class CoopGameLogic {
         };
     }
 
-    // === СИСТЕМА КВЕСТОВ ===
-
-    // Начать квест
-    startQuest(gameState, character, questId) {
-        const quest = QuestData.createQuestInstance(questId);
-        if (!quest) {
-            return { success: false, message: "Квест не найден" };
-        }
-
-        if (gameState.quests[character].active) {
-            return { success: false, message: "У вас уже есть активный квест" };
-        }
-
-        gameState.quests[character].active = quest;
-        return { 
-            success: true, 
-            message: `Начат квест: ${quest.title}`,
-            quest: quest
-        };
-    }
-
-    // Обновить прогресс квеста
-    updateQuestProgress(gameState, character, stepId) {
-        const activeQuest = gameState.quests[character].active;
-        if (!activeQuest) {
-            return { success: false, message: "Нет активного квеста" };
-        }
-
-        const currentStep = activeQuest.steps[activeQuest.currentStep];
-        if (currentStep && currentStep.id === stepId) {
-            currentStep.completed = true;
-            activeQuest.currentStep++;
-
-            if (activeQuest.currentStep >= activeQuest.steps.length) {
-                // Квест завершён
-                this.completeQuest(gameState, character);
-                return { 
-                    success: true, 
-                    completed: true,
-                    message: `Квест завершён: ${activeQuest.title}!`,
-                    rewards: activeQuest.rewards
-                };
-            } else {
-                return { 
-                    success: true, 
-                    message: `Шаг квеста выполнен: ${currentStep.description}`,
-                    nextStep: activeQuest.steps[activeQuest.currentStep]
-                };
-            }
-        }
-
-        return { success: false, message: "Неверный шаг квеста" };
-    }
-
-    // Завершить квест
-    completeQuest(gameState, character) {
-        const activeQuest = gameState.quests[character].active;
-        if (activeQuest) {
-            // Добавляем награды в инвентарь
-            if (activeQuest.rewards) {
-                activeQuest.rewards.forEach(reward => {
-                    gameState.stats[character].inventory.push(reward);
-                });
-            }
-
-            // Перемещаем квест в завершённые
-            gameState.quests[character].completed.push(activeQuest);
-            gameState.quests[character].active = null;
-        }
-    }
-
-    // Получить текущий квест персонажа
-    getCurrentQuest(gameState, character) {
-        return gameState.quests[character].active;
-    }
-
-    // Получить текущий шаг квеста
-    getCurrentQuestStep(gameState, character) {
-        const quest = this.getCurrentQuest(gameState, character);
-        if (!quest || quest.currentStep >= quest.steps.length) {
-            return null;
-        }
-        return quest.steps[quest.currentStep];
-    }
-
-    // Проверить, может ли персонаж начать квест
-    canStartQuest(gameState, character, questId) {
-        const quest = QuestData.getQuest(questId);
-        if (!quest || quest.character !== character) {
-            return false;
-        }
-
-        // Проверяем, что нет активного квеста
-        if (gameState.quests[character].active) {
-            return false;
-        }
-
-        // Проверяем, что квест не был завершён ранее
-        const completed = gameState.quests[character].completed;
-        return !completed.some(q => q.id === questId);
-    }
-
-    // Обработать квестовое действие из диалога
+    // Обработка квестового действия
     processQuestAction(gameState, character, choiceId, dialogueResult) {
-        // Делегируем обработку в отдельный модуль
-        processQuestAction(gameState, character, choiceId, dialogueResult, this);
+        const questIntegration = this.questIntegrations.get(gameState.roomId);
+        if (!questIntegration) return;
+        
+        // Проверяем квестовые действия в диалоге
+        const choice = dialogueResult.originalChoice;
+        
+        if (choice && choice.quest_action) {
+            // Обрабатываем квестовые действия через систему квестов
+            questIntegration.processQuestAction(gameState, character, choice.quest_action, this);
+        }
     }
 }
 

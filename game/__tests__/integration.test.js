@@ -1,5 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
-const CoopStoryData = require('../coopStoryData');
+const CoopStoryData = require('../data/coopStoryDataSCM');
 const { wait } = require('./testUtils');
 
 describe('Game Integration Tests', () => {

@@ -19,7 +19,7 @@ function createMockGameState(overrides = {}) {
             princess: {
                 outfit: 'nightgown',
                 awareness: 0,
-                loyalty: {},
+                // Removed loyalty system
                 inventory: []
             },
             helper: {

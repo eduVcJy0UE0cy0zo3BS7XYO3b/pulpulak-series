@@ -33,7 +33,7 @@ describe('Independent Dialogues System', () => {
         let result2 = gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
         expect(result2.success).toBe(true);
         expect(gameState.npcDialogues.helper).toBeDefined();
-        expect(gameState.npcDialogues.helper.npcName).toBe('Повар Марта');
+        expect(gameState.npcDialogues.helper.npcName).toBe('Повариха Марта');
         
         // Оба диалога должны оставаться активными
         expect(gameState.npcDialogues.princess).toBeDefined();
@@ -145,7 +145,7 @@ describe('Independent Dialogues System', () => {
         expect(gameData.npcDialogues.helper).toBeDefined();
         
         expect(gameData.npcDialogues.princess.npcName).toBe('Королевский советник Эдвард');
-        expect(gameData.npcDialogues.helper.npcName).toBe('Повар Марта');
+        expect(gameData.npcDialogues.helper.npcName).toBe('Повариха Марта');
         
         expect(gameData.npcDialogues.princess.choices.length).toBeGreaterThan(0);
         expect(gameData.npcDialogues.helper.choices.length).toBeGreaterThan(0);
