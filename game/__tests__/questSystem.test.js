@@ -1,4 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
+const { refreshGameState } = require('./testHelpers');
 const QuestData = require('../questData');
 
 describe('Quest System', () => {
@@ -41,7 +42,7 @@ describe('Quest System', () => {
 
     describe('Quest Management', () => {
         test('должен инициализировать пустые квесты', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             expect(gameState.quests).toBeDefined();
             expect(gameState.quests.princess.active).toBeNull();
             expect(gameState.quests.helper.active).toBeNull();
@@ -50,31 +51,38 @@ describe('Quest System', () => {
         });
 
         test('должен начинать квест для княжны', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             const result = gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
+            gameState = refreshGameState(gameLogic, roomId);
             
             expect(result.success).toBe(true);
             expect(result.quest).toBeDefined();
-            expect(gameState.quests.princess.active).toBeDefined();
-            expect(gameState.quests.princess.active.title).toContain('реликвия');
+            
+            // Получаем обновленное состояние
+            const updatedGameState = gameLogic.games.get(roomId);
+            expect(updatedGameState.quests.princess.active).toBeDefined();
+            expect(updatedGameState.quests.princess.active.title).toContain('реликвия');
         });
 
         test('должен проверять возможность начать квест', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             
             // Изначально можно начать квест
             expect(gameLogic.canStartQuest(gameState, 'princess', 'princess_lost_relic')).toBe(true);
             
             // После начала квеста нельзя начать другой
             gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
+            gameState = gameLogic.games.get(roomId);
             expect(gameLogic.canStartQuest(gameState, 'princess', 'princess_lost_relic')).toBe(false);
         });
 
         test('должен обновлять прогресс квеста', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
+            gameState = gameLogic.games.get(roomId);
             
             const result = gameLogic.updateQuestProgress(gameState, 'princess', 'get_quest');
+            gameState = gameLogic.games.get(roomId);
             
             expect(result.success).toBe(true);
             expect(gameState.quests.princess.active.currentStep).toBe(1);
@@ -82,17 +90,26 @@ describe('Quest System', () => {
         });
 
         test('должен завершать квест и давать награды', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
+            gameState = gameLogic.games.get(roomId);
             
             const quest = gameState.quests.princess.active;
             const inventoryBefore = gameState.stats.princess.inventory.length;
             
             // Проходим все шаги квеста
             quest.steps.forEach((step, index) => {
-                quest.currentStep = index;
-                gameLogic.updateQuestProgress(gameState, 'princess', step.id);
+                let currentGameState = gameLogic.games.get(roomId);
+                // Устанавливаем текущий шаг через Immer
+                currentGameState = gameLogic.immerStateManager.updateState(currentGameState, draft => {
+                    draft.quests.princess.active.currentStep = index;
+                });
+                gameLogic.games.set(roomId, currentGameState);
+                gameLogic.updateQuestProgress(currentGameState, 'princess', step.id);
             });
+            
+            // Получаем финальное состояние
+            gameState = gameLogic.games.get(roomId);
             
             // Квест должен быть завершён
             expect(gameState.quests.princess.active).toBeNull();
@@ -103,14 +120,16 @@ describe('Quest System', () => {
 
     describe('Quest Integration with NPCs', () => {
         test('должен начинать квест княжны через диалог с советником', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             // Начинаем диалог с советником
             gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            gameState = refreshGameState(gameLogic, roomId);
             
             // Выбираем квестовый диалог
             const result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
+            gameState = refreshGameState(gameLogic, roomId);
             
             expect(result.success).toBe(true);
             expect(gameState.quests.princess.active).toBeDefined();
@@ -118,7 +137,7 @@ describe('Quest System', () => {
         });
 
         test('должен начинать квест помощницы через диалог с поваром', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameState.stats.helper.location = 'kitchen';
             gameState.stats.helper.outfit = 'common_dress';
             
@@ -127,6 +146,7 @@ describe('Quest System', () => {
             
             // Выбираем квестовый диалог
             const result = gameLogic.processNPCDialogueChoice(roomId, 'bob', 'ask_about_herbs', 'helper');
+            gameState = refreshGameState(gameLogic, roomId);
             
             expect(result.success).toBe(true);
             expect(gameState.quests.helper.active).toBeDefined();
@@ -134,7 +154,7 @@ describe('Quest System', () => {
         });
 
         test('должен показывать квест только соответствующему персонажу', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             
             // Начинаем квест для княжны
             gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
@@ -147,7 +167,7 @@ describe('Quest System', () => {
 
     describe('Game Data Integration', () => {
         test('должен включать информацию о квестах в gameData', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
             
             const gameData = gameLogic.getGameData(roomId);
@@ -159,11 +179,12 @@ describe('Quest System', () => {
         });
 
         test('должен показывать количество завершённых квестов', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameLogic.startQuest(gameState, 'princess', 'princess_lost_relic');
+            gameState = gameLogic.games.get(roomId);
             
             // Завершаем квест
-            gameLogic.completeQuest(gameState, 'princess');
+            const completedState = gameLogic.completeQuest(gameState, 'princess');
             
             const gameData = gameLogic.getGameData(roomId);
             
@@ -174,12 +195,13 @@ describe('Quest System', () => {
 
     describe('Quest Flow', () => {
         test('квест княжны: полный цикл поиска реликвии', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             
             // 1. Получаем квест от советника
             gameState.stats.princess.location = 'throne_room';
             gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
             gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
+            gameState = refreshGameState(gameLogic, roomId);
             
             expect(gameState.quests.princess.active).toBeDefined();
             
@@ -205,13 +227,14 @@ describe('Quest System', () => {
         });
 
         test('квест помощницы: полный цикл создания зелья', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameState.stats.helper.outfit = 'common_dress';
             
             // 1. Получаем квест от повара
             gameState.stats.helper.location = 'kitchen';
             gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
             gameLogic.processNPCDialogueChoice(roomId, 'bob', 'ask_about_herbs', 'helper');
+            gameState = refreshGameState(gameLogic, roomId);
             
             expect(gameState.quests.helper.active).toBeDefined();
             

@@ -49,7 +49,7 @@ describe('Movement System', () => {
             const result = gameLogic.processMovement(gameState, 'corridor_upper', 'princess');
             
             expect(result.success).toBe(true);
-            expect(gameState.stats.princess.location).toBe('corridor_upper');
+            expect(result.gameState.stats.princess.location).toBe('corridor_upper');
             expect(result.message).toContain('Княжна переместилась');
         });
 

@@ -790,7 +790,7 @@ class NPCData {
         
         let currentDialogue;
         
-        // Специальная логика для NPC в особых локациях
+        // Специальная логика для NPC в особых локациях (приоритет над return диалогом)
         if (npcId === 'librarian' && currentLocation === 'secret_archive' && dialogueTree.archive) {
             currentDialogue = dialogueTree.archive;
         } else if (npcId === 'herbalist' && currentLocation === 'greenhouse' && dialogueTree.greenhouse) {
@@ -885,7 +885,7 @@ class NPCData {
             let currentDialogue;
             const hasMetBefore = npcMemory[outfitType] && Object.keys(npcMemory[outfitType]).length > 0;
             
-            // Специальная логика для библиотекаря в секретном архиве
+            // Специальная логика для NPC в особых локациях (приоритет над return диалогом)
             if (npcId === 'librarian' && currentLocation === 'secret_archive' && dialogueTree.archive) {
                 currentDialogue = dialogueTree.archive;
             // Специальная логика для травницы в теплице

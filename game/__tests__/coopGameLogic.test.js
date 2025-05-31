@@ -232,8 +232,9 @@ describe('CoopGameLogic', () => {
                     }
                 });
 
-                const gameState = gameLogic.games.get(roomId);
+                let gameState = gameLogic.games.get(roomId);
                 gameLogic.processChoice(gameState, 'magic_choice', 'princess');
+                gameState = gameLogic.games.get(roomId);
 
                 expect(gameState.stats.princess.awareness).toBe(5);
             });
@@ -311,10 +312,11 @@ describe('CoopGameLogic', () => {
         test('должна обрабатывать взаимодействие с NPC', () => {
             // Создаем новую игру для этого теста
             gameLogic.startGame(roomId, players);
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             const result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            gameState = gameLogic.games.get(roomId);
             
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess).toBeDefined();

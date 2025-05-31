@@ -1,4 +1,5 @@
 const gameConfig = require('../config/gameConfig');
+const ImmerStateManager = require('./stateManager');
 
 class GameStateManager {
     constructor() {
@@ -7,6 +8,7 @@ class GameStateManager {
             turnOrder: 'princess',
             chapter: 1
         };
+        this.stateManager = new ImmerStateManager();
     }
 
     createInitialState(roomId, players) {
@@ -99,7 +101,8 @@ class GameStateManager {
     }
 
     cloneGameState(gameState) {
-        return JSON.parse(JSON.stringify(gameState));
+        // Используем Immer для создания иммутабельной копии
+        return this.stateManager.createDraft(gameState);
     }
 
     resetCharacterToLocation(gameState, character, location) {
@@ -107,15 +110,16 @@ class GameStateManager {
             throw new Error(`Character ${character} not found`);
         }
 
-        gameState.stats[character].location = location;
-        gameState.stats[character].npcsPresent = [];
-        
-        return gameState;
+        return this.stateManager.updateState(gameState, draft => {
+            draft.stats[character].location = location;
+            draft.stats[character].npcsPresent = [];
+        });
     }
 
     switchTurn(gameState) {
-        gameState.turnOrder = gameState.turnOrder === 'princess' ? 'helper' : 'princess';
-        return gameState;
+        return this.stateManager.updateState(gameState, draft => {
+            draft.turnOrder = draft.turnOrder === 'princess' ? 'helper' : 'princess';
+        });
     }
 
     getCharacterStats(gameState, character) {
@@ -130,8 +134,9 @@ class GameStateManager {
             throw new Error(`Character ${character} not found`);
         }
         
-        gameState.stats[character][statName] = value;
-        return gameState;
+        return this.stateManager.updateState(gameState, draft => {
+            draft.stats[character][statName] = value;
+        });
     }
 
     addToInventory(gameState, character, item) {
@@ -139,13 +144,13 @@ class GameStateManager {
             throw new Error(`Character ${character} not found`);
         }
 
-        const inventory = gameState.stats[character].inventory;
-        if (inventory.length >= gameConfig.MAX_INVENTORY_SIZE) {
-            throw new Error('Inventory is full');
-        }
-
-        inventory.push(item);
-        return gameState;
+        return this.stateManager.updateState(gameState, draft => {
+            const inventory = draft.stats[character].inventory;
+            if (inventory.length >= gameConfig.MAX_INVENTORY_SIZE) {
+                throw new Error('Inventory is full');
+            }
+            inventory.push(item);
+        });
     }
 
     removeFromInventory(gameState, character, item) {
@@ -153,15 +158,18 @@ class GameStateManager {
             throw new Error(`Character ${character} not found`);
         }
 
-        const inventory = gameState.stats[character].inventory;
-        const index = inventory.indexOf(item);
+        let found = false;
+        const newState = this.stateManager.updateState(gameState, draft => {
+            const inventory = draft.stats[character].inventory;
+            const index = inventory.indexOf(item);
+            
+            if (index > -1) {
+                inventory.splice(index, 1);
+                found = true;
+            }
+        });
         
-        if (index > -1) {
-            inventory.splice(index, 1);
-            return true;
-        }
-        
-        return false;
+        return { gameState: newState, removed: found };
     }
 
     getGameSummary(gameState) {

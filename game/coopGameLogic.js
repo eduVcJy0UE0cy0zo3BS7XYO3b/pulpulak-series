@@ -5,12 +5,14 @@ const QuestData = require('./questData');
 const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./constants');
 const { processQuestAction } = require('./questActionHandlers');
 const GameStateManager = require('./gameStateManager');
+const ImmerStateManager = require('./stateManager');
 
 class CoopGameLogic {
     constructor() {
         this.games = new Map(); // roomId -> gameState
         this.outfitRequests = new Map(); // roomId -> activeRequest
         this.stateManager = new GameStateManager();
+        this.immerStateManager = new ImmerStateManager();
     }
 
     // Запуск игры
@@ -130,17 +132,21 @@ class CoopGameLogic {
             };
         }
 
-        // Меняем наряды местами
-        const { princess, helper } = gameState.stats;
-        const tempOutfit = princess.outfit;
-        princess.outfit = helper.outfit;
-        helper.outfit = tempOutfit;
+        // Меняем наряды местами с помощью Immer
+        const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
+            const tempOutfit = draft.stats.princess.outfit;
+            draft.stats.princess.outfit = draft.stats.helper.outfit;
+            draft.stats.helper.outfit = tempOutfit;
+        });
+        
+        // Обновляем состояние игры
+        this.games.set(roomId, updatedGameState);
 
 
         return {
             success: true,
             accepted: true,
-            message: `Персонажи поменялись одеждой! Княжна теперь в: ${this.getOutfitName(princess.outfit)}, помощница в: ${this.getOutfitName(helper.outfit)}`
+            message: `Персонажи поменялись одеждой! Княжна теперь в: ${this.getOutfitName(updatedGameState.stats.princess.outfit)}, помощница в: ${this.getOutfitName(updatedGameState.stats.helper.outfit)}`
         };
     }
 
@@ -283,22 +289,24 @@ class CoopGameLogic {
 
         // Применяем эффекты выбора
         if (choice.effects) {
-            this.applyEffects(gameState, choice.effects, character);
+            gameState = this.applyEffects(gameState, choice.effects, character);
+            this.games.set(gameState.roomId, gameState);
         }
 
         // Проверяем, меняется ли сцена
         if (choice.nextScene) {
-            gameState.currentScene = choice.nextScene;
+            gameState = this.immerStateManager.updateState(gameState, draft => {
+                draft.currentScene = choice.nextScene;
+            });
+            this.games.set(gameState.roomId, gameState);
             
             // При смене сцены отменяем активные запросы
             this.cancelOutfitRequest(gameState.roomId);
-            
-            // При смене сцены обновляем локацию если она указана
-            // Больше не нужно, так как локации индивидуальные
         }
 
         // Меняем очередь хода
-        this.switchTurn(gameState);
+        gameState = this.switchTurn(gameState);
+        this.games.set(gameState.roomId, gameState);
 
         return { 
             success: true, 
@@ -318,16 +326,18 @@ class CoopGameLogic {
 
     // Применить эффекты выбора
     applyEffects(gameState, effects, character) {
-        if (effects.outfit) {
-            gameState.stats[character].outfit = effects.outfit;
-        }
-        if (effects.location) {
-            gameState.stats[character].location = effects.location;
-            gameState.stats[character].npcsPresent = this.getNPCsForLocation(effects.location, gameState, character);
-        }
-        if (effects.awareness) {
-            gameState.stats[character].awareness += effects.awareness;
-        }
+        return this.immerStateManager.updateState(gameState, draft => {
+            if (effects.outfit) {
+                draft.stats[character].outfit = effects.outfit;
+            }
+            if (effects.location) {
+                draft.stats[character].location = effects.location;
+                draft.stats[character].npcsPresent = this.getNPCsForLocation(effects.location, gameState, character);
+            }
+            if (effects.awareness) {
+                draft.stats[character].awareness += effects.awareness;
+            }
+        });
     }
 
     // Проверить доступность выбора
@@ -338,7 +348,9 @@ class CoopGameLogic {
 
     // Сменить очередь хода
     switchTurn(gameState) {
-        gameState.turnOrder = gameState.turnOrder === 'princess' ? 'helper' : 'princess';
+        return this.immerStateManager.updateState(gameState, draft => {
+            draft.turnOrder = draft.turnOrder === 'princess' ? 'helper' : 'princess';
+        });
     }
 
     // Получить данные игры
@@ -461,18 +473,20 @@ class CoopGameLogic {
             this.cancelOutfitRequest(gameState.roomId);
         }
 
-        // Перемещаем конкретного персонажа
-        characterStats.location = targetLocation;
-        
-        // Обновляем NPC для новой локации этого персонажа
-        characterStats.npcsPresent = this.getNPCsForLocation(targetLocation, gameState, character);
+        // Перемещаем конкретного персонажа с помощью Immer
+        const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
+            draft.stats[character].location = targetLocation;
+            draft.stats[character].npcsPresent = this.getNPCsForLocation(targetLocation, gameState, character);
+        });
+        this.games.set(updatedGameState.roomId, updatedGameState);
 
         // НЕ меняем очередь хода при перемещении
         // Это позволяет игрокам свободно перемещаться
 
         return { 
             success: true, 
-            message: `${character === 'princess' ? 'Княжна' : 'Помощница'} переместилась в ${locationInfo.name}`
+            message: `${character === 'princess' ? 'Княжна' : 'Помощница'} переместилась в ${locationInfo.name}`,
+            gameState: updatedGameState
         };
     }
 
@@ -511,31 +525,38 @@ class CoopGameLogic {
         // Получаем наряд персонажа
         const outfit = gameState.stats[character].outfit;
         
-        // Получаем память NPC для этого персонажа
+        // Получаем память NPC и создаем диалог через Immer
+        let updatedGameState = gameState;
         if (!gameState.npcMemory[character][npcId]) {
-            gameState.npcMemory[character][npcId] = {};
+            updatedGameState = this.immerStateManager.updateState(gameState, draft => {
+                draft.npcMemory[character][npcId] = {};
+            });
+            this.games.set(updatedGameState.roomId, updatedGameState);
         }
-        const npcMemory = gameState.npcMemory[character][npcId];
+        const npcMemory = updatedGameState.npcMemory[character][npcId];
         
         // Получаем диалог в зависимости от наряда, памяти, локации и состояния квеста
-        const currentLocation = gameState.stats[character].location;
-        const questState = gameState.quests[character];
-        const globalQuestMemory = gameState.globalQuestMemory;
+        const currentLocation = updatedGameState.stats[character].location;
+        const questState = updatedGameState.quests[character];
+        const globalQuestMemory = updatedGameState.globalQuestMemory;
         const dialogue = NPCData.getNPCDialogue(npcId, outfit, npcMemory, currentLocation, questState, globalQuestMemory);
         if (!dialogue) {
             return { success: false, message: "Диалог не найден" };
         }
 
         // Сохраняем информацию о диалоге для конкретного персонажа
-        gameState.npcDialogues[character] = {
-            npcId: npcId,
-            npcName: npc.name,
-            greeting: dialogue.greeting,
-            choices: dialogue.choices,
-            attitude: NPCData.getNPCAttitude(npcId, outfit),
-            activeCharacter: character, // Кто ведет диалог
-            isFollowUp: false // Флаг для дополнительных выборов
-        };
+        updatedGameState = this.immerStateManager.updateState(updatedGameState, draft => {
+            draft.npcDialogues[character] = {
+                npcId: npcId,
+                npcName: npc.name,
+                greeting: dialogue.greeting,
+                choices: dialogue.choices,
+                attitude: NPCData.getNPCAttitude(npcId, outfit),
+                activeCharacter: character, // Кто ведет диалог
+                isFollowUp: false // Флаг для дополнительных выборов
+            };
+        });
+        this.games.set(updatedGameState.roomId, updatedGameState);
 
         return { 
             success: true, 
@@ -553,7 +574,7 @@ class CoopGameLogic {
 
     // Обработка выбора в диалоге с NPC
     processNPCDialogueChoice(roomId, playerId, choiceId, character) {
-        const gameState = this.games.get(roomId);
+        let gameState = this.games.get(roomId);
         if (!gameState) {
             return { success: false, message: "Игра не найдена" };
         }
@@ -581,11 +602,14 @@ class CoopGameLogic {
         const isFollowUp = gameState.npcDialogues[character].isFollowUp || false;
         const currentChoices = isFollowUp ? gameState.npcDialogues[character].choices : [];
         
+        // Создаем мутабельную копию памяти NPC для NPCData
+        const npcMemoryCopy = JSON.parse(JSON.stringify(gameState.npcMemory[character][npcId]));
+        
         const result = NPCData.processDialogueChoice(
             npcId, 
             choiceId, 
             outfit, 
-            gameState.npcMemory[character][npcId],
+            npcMemoryCopy,
             isFollowUp,
             currentChoices,
             gameState.stats[character].location
@@ -594,30 +618,47 @@ class CoopGameLogic {
             return { success: false, message: "Неверный выбор" };
         }
 
-        // Обновляем память NPC
-        gameState.npcMemory[character][npcId] = result.updatedMemory;
-
-        // Применяем эффекты выбора
-        if (result.effects) {
-            if (result.effects.item) {
-                gameState.stats[character].inventory.push(result.effects.item);
+        // Обновляем память NPC и применяем эффекты
+        gameState = this.immerStateManager.updateState(gameState, draft => {
+            draft.npcMemory[character][npcId] = result.updatedMemory;
+            
+            // Применяем эффекты выбора
+            if (result.effects) {
+                if (result.effects.item) {
+                    draft.stats[character].inventory.push(result.effects.item);
+                }
+                if (result.effects.info) {
+                    draft.stats[character][result.effects.info] = true;
+                }
             }
-            if (result.effects.info) {
-                gameState.stats[character][result.effects.info] = true;
-            }
-        }
+        });
+        this.games.set(gameState.roomId, gameState);
 
         // Обрабатываем квестовые действия
-        this.processQuestAction(gameState, character, choiceId, result);
+        const questResult = this.processQuestAction(gameState, character, choiceId, result);
+        if (questResult && questResult.success && questResult.gameState) {
+            gameState = questResult.gameState;
+            this.games.set(gameState.roomId, gameState);
+        }
+
+        // Обновляем NPC в локациях после квестовых действий (NPC могли переместиться)
+        gameState = this.immerStateManager.updateState(gameState, draft => {
+            draft.stats.princess.npcsPresent = this.getNPCsForLocation(draft.stats.princess.location, gameState, 'princess');
+            draft.stats.helper.npcsPresent = this.getNPCsForLocation(draft.stats.helper.location, gameState, 'helper');
+        });
+        this.games.set(gameState.roomId, gameState);
 
         // Сохраняем attitude до очистки диалога
         const attitude = gameState.npcDialogues[character]?.attitude;
 
         // Если есть дополнительные выборы, показываем их
         if (result.next_choices && result.next_choices.length > 0) {
-            gameState.npcDialogues[character].choices = result.next_choices;
-            gameState.npcDialogues[character].greeting = result.response;
-            gameState.npcDialogues[character].isFollowUp = true;
+            gameState = this.immerStateManager.updateState(gameState, draft => {
+                draft.npcDialogues[character].choices = result.next_choices;
+                draft.npcDialogues[character].greeting = result.response;
+                draft.npcDialogues[character].isFollowUp = true;
+            });
+            this.games.set(gameState.roomId, gameState);
 
             return { 
                 success: true, 
@@ -626,11 +667,12 @@ class CoopGameLogic {
                 hasFollowUp: true
             };
         } else {
-            // Очищаем диалог для данного персонажа
-            gameState.npcDialogues[character] = null;
-
-            // Меняем очередь хода
-            this.switchTurn(gameState);
+            // Очищаем диалог для данного персонажа и меняем ход
+            gameState = this.immerStateManager.updateState(gameState, draft => {
+                draft.npcDialogues[character] = null;
+            });
+            gameState = this.switchTurn(gameState);
+            this.games.set(gameState.roomId, gameState);
 
             return { 
                 success: true, 
@@ -642,7 +684,7 @@ class CoopGameLogic {
 
     // Закрытие диалога с NPC
     closeNPCDialogue(roomId, playerId) {
-        const gameState = this.games.get(roomId);
+        let gameState = this.games.get(roomId);
         if (!gameState) {
             return { success: false, message: "Игра не найдена" };
         }
@@ -666,11 +708,15 @@ class CoopGameLogic {
         }
 
         // Закрываем диалог для данного персонажа
-        gameState.npcDialogues[character] = null;
+        gameState = this.immerStateManager.updateState(gameState, draft => {
+            draft.npcDialogues[character] = null;
+        });
+        this.games.set(gameState.roomId, gameState);
 
         return { 
             success: true, 
-            message: "Диалог закрыт"
+            message: "Диалог закрыт",
+            gameState: gameState
         };
     }
 
@@ -687,11 +733,23 @@ class CoopGameLogic {
             return { success: false, message: "У вас уже есть активный квест" };
         }
 
-        gameState.quests[character].active = quest;
+        const updatedState = this.immerStateManager.updateState(gameState, draft => {
+            draft.quests[character].active = quest;
+            
+            // Сразу отмечаем квест как взятый в глобальной памяти
+            if (questId === 'princess_lost_relic') {
+                draft.globalQuestMemory.princess_lost_relic = true;
+            } else if (questId === 'helper_secret_potion') {
+                draft.globalQuestMemory.helper_secret_potion = true;
+            }
+        });
+        this.games.set(updatedState.roomId, updatedState);
+        
         return { 
             success: true, 
             message: `Начат квест: ${quest.title}`,
-            quest: quest
+            quest: quest,
+            gameState: updatedState
         };
     }
 
@@ -704,23 +762,29 @@ class CoopGameLogic {
 
         const currentStep = activeQuest.steps[activeQuest.currentStep];
         if (currentStep && currentStep.id === stepId) {
-            currentStep.completed = true;
-            activeQuest.currentStep++;
+            const updatedState = this.immerStateManager.updateState(gameState, draft => {
+                const draftQuest = draft.quests[character].active;
+                draftQuest.steps[draftQuest.currentStep].completed = true;
+                draftQuest.currentStep++;
+            });
+            this.games.set(updatedState.roomId, updatedState);
 
-            if (activeQuest.currentStep >= activeQuest.steps.length) {
+            if (updatedState.quests[character].active.currentStep >= updatedState.quests[character].active.steps.length) {
                 // Квест завершён
-                this.completeQuest(gameState, character);
+                const completedState = this.completeQuest(updatedState, character);
                 return { 
                     success: true, 
                     completed: true,
                     message: `Квест завершён: ${activeQuest.title}!`,
-                    rewards: activeQuest.rewards
+                    rewards: activeQuest.rewards,
+                    gameState: completedState
                 };
             } else {
                 return { 
                     success: true, 
                     message: `Шаг квеста выполнен: ${currentStep.description}`,
-                    nextStep: activeQuest.steps[activeQuest.currentStep]
+                    nextStep: updatedState.quests[character].active.steps[updatedState.quests[character].active.currentStep],
+                    gameState: updatedState
                 };
             }
         }
@@ -732,17 +796,29 @@ class CoopGameLogic {
     completeQuest(gameState, character) {
         const activeQuest = gameState.quests[character].active;
         if (activeQuest) {
-            // Добавляем награды в инвентарь
-            if (activeQuest.rewards) {
-                activeQuest.rewards.forEach(reward => {
-                    gameState.stats[character].inventory.push(reward);
-                });
-            }
+            const updatedState = this.immerStateManager.updateState(gameState, draft => {
+                // Добавляем награды в инвентарь
+                if (activeQuest.rewards) {
+                    activeQuest.rewards.forEach(reward => {
+                        draft.stats[character].inventory.push(reward);
+                    });
+                }
 
-            // Перемещаем квест в завершённые
-            gameState.quests[character].completed.push(activeQuest);
-            gameState.quests[character].active = null;
+                // Перемещаем квест в завершённые
+                draft.quests[character].completed.push(activeQuest);
+                draft.quests[character].active = null;
+                
+                // Обновляем глобальную память квестов
+                if (activeQuest.id === 'princess_lost_relic') {
+                    draft.globalQuestMemory.princess_lost_relic = true;
+                } else if (activeQuest.id === 'helper_secret_potion') {
+                    draft.globalQuestMemory.helper_secret_potion = true;
+                }
+            });
+            this.games.set(updatedState.roomId, updatedState);
+            return updatedState;
         }
+        return gameState;
     }
 
     // Получить текущий квест персонажа
@@ -779,7 +855,7 @@ class CoopGameLogic {
     // Обработать квестовое действие из диалога
     processQuestAction(gameState, character, choiceId, dialogueResult) {
         // Делегируем обработку в отдельный модуль
-        processQuestAction(gameState, character, choiceId, dialogueResult, this);
+        return processQuestAction(gameState, character, choiceId, dialogueResult, this);
     }
 }
 

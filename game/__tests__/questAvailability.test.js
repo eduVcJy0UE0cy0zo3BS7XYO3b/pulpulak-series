@@ -1,4 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
+const { refreshGameState } = require('./testHelpers');
 
 describe('Quest Availability After Dialogue', () => {
     let gameLogic;
@@ -17,15 +18,19 @@ describe('Quest Availability After Dialogue', () => {
         roomId = gameData.roomId;
         gameState = gameLogic.games.get(roomId);
         
-        // Размещаем княжну в тронном зале в парадной одежде
-        gameState.stats.princess.location = 'throne_room';
-        gameState.stats.princess.outfit = 'princess_dress';
+        // Размещаем княжну в тронном зале в парадной одежде через Immer
+        gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+            draft.stats.princess.location = 'throne_room';
+            draft.stats.princess.outfit = 'princess_dress';
+        });
+        gameLogic.games.set(roomId, gameState);
     });
 
     test('должен позволить взять квест на реликвию после разговора о королевстве', () => {
         // 1. Первый разговор - спрашиваем о королевстве
         console.log('1. Первый разговор с советником - спрашиваем о королевстве');
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         
         let dialogue = gameState.npcDialogues.princess;
         expect(dialogue).toBeDefined();
@@ -41,6 +46,7 @@ describe('Quest Availability After Dialogue', () => {
         
         // Выбираем разговор о королевстве
         let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
         // Проверяем, что память о разговоре сохранилась
@@ -50,6 +56,7 @@ describe('Quest Availability After Dialogue', () => {
         // 2. Второй разговор - должен быть доступен квест на реликвию
         console.log('2. Второй разговор с советником - ищем квест на реликвию');
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         
         dialogue = gameState.npcDialogues.princess;
         expect(dialogue).toBeDefined();
@@ -64,6 +71,7 @@ describe('Quest Availability After Dialogue', () => {
         // 3. Берём квест на реликвию
         console.log('3. Берём квест на реликвию');
         result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
         // Проверяем, что квест запустился
@@ -76,6 +84,7 @@ describe('Quest Availability After Dialogue', () => {
         // 4. Третий разговор - квест больше не должен быть доступен
         console.log('4. Третий разговор - квест должен быть недоступен');
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         
         dialogue = gameState.npcDialogues.princess;
         const relicChoiceThird = dialogue.choices.find(c => c.id === 'ask_about_relic');
@@ -89,11 +98,14 @@ describe('Quest Availability After Dialogue', () => {
         console.log('Тестируем с выбором о родителях');
         
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_parents', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
         // Второй разговор - квест должен быть доступен
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         const dialogue = gameState.npcDialogues.princess;
         const relicChoice = dialogue.choices.find(c => c.id === 'ask_about_relic');
         
@@ -105,10 +117,15 @@ describe('Quest Availability After Dialogue', () => {
         // Сначала говорим с советником о королевстве (не берём квест)
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
         gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         
-        // Идём к библиотекарю
-        gameState.stats.princess.location = 'library';
+        // Идём к библиотекарю через Immer
+        gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+            draft.stats.princess.location = 'library';
+        });
+        gameLogic.games.set(roomId, gameState);
         gameLogic.processNPCInteraction(gameState, 'librarian', 'princess');
+        gameState = refreshGameState(gameLogic, roomId);
         
         const dialogue = gameState.npcDialogues.princess;
         expect(dialogue).toBeDefined();
