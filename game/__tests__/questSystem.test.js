@@ -1,6 +1,6 @@
 const CoopGameLogic = require('../coopGameLogic');
 const { refreshGameState } = require('./testHelpers');
-const QuestData = require('../questData');
+const QuestData = require('../../games/pulpulak/data/questData');
 
 describe('Quest System', () => {
     let gameLogic;

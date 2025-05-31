@@ -3,8 +3,8 @@
  * Отвечает за создание, хранение и получение игровых данных
  */
 
-const CoopStoryData = require('../coopStoryData');
-const LocationData = require('../locationData');
+const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
+const LocationData = require('../../games/pulpulak/data/locationData');
 
 class GameDataManager {
     constructor() {

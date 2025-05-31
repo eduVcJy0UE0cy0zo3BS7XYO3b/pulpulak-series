@@ -3,7 +3,7 @@
  * Отвечает за состояние персонажей, их местоположение, инвентарь и статистику
  */
 
-const NPCData = require('../npcData');
+const NPCData = require('../../games/pulpulak/data/npcData');
 const ImmerStateManager = require('../stateManager');
 
 class PlayerDataManager {

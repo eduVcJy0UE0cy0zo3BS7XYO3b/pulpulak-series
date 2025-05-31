@@ -1,8 +1,8 @@
 const CoopGameLogic = require('../coopGameLogic');
-const CoopStoryData = require('../coopStoryData');
+const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
 
 // Mock для CoopStoryData
-jest.mock('../coopStoryData', () => ({
+jest.mock('../../games/pulpulak/data/coopStoryData', () => ({
     getScene: jest.fn()
 }));
 

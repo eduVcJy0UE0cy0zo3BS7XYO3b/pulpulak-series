@@ -1,5 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
-const CoopStoryData = require('../coopStoryData');
+const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
 const { wait } = require('./testUtils');
 
 describe('Game Integration Tests', () => {

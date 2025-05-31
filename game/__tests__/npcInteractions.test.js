@@ -1,5 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
-const NPCData = require('../npcData');
+const NPCData = require('../../games/pulpulak/data/npcData');
 const { refreshGameState } = require('./testHelpers');
 
 describe('NPC Interactions', () => {

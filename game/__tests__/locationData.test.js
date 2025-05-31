@@ -1,4 +1,4 @@
-const LocationData = require('../locationData');
+const LocationData = require('../../games/pulpulak/data/locationData');
 
 describe('LocationData', () => {
     describe('getLocation', () => {

@@ -1,4 +1,4 @@
-const CoopStoryData = require('../coopStoryData');
+const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
 
 describe('CoopStoryData', () => {
     describe('getScene', () => {

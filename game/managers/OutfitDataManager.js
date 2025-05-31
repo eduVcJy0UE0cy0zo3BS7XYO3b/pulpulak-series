@@ -3,8 +3,8 @@
  * Отвечает за смену одежды, валидацию и обработку запросов на обмен
  */
 
-const { OUTFIT_NAMES } = require('../constants');
-const LocationData = require('../locationData');
+const { OUTFIT_NAMES } = require('../../games/pulpulak/data/constants');
+const LocationData = require('../../games/pulpulak/data/locationData');
 
 class OutfitDataManager {
     constructor(gameDataManager, playerDataManager) {

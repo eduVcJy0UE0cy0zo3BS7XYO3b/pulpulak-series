@@ -1,5 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
-const LocationData = require('../locationData');
+const LocationData = require('../../games/pulpulak/data/locationData');
 
 describe('Movement System', () => {
     let gameLogic;

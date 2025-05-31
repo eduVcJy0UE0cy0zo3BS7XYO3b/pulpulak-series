@@ -3,7 +3,7 @@
  * Отвечает за состояние квестов, их прогресс и завершение
  */
 
-const QuestData = require('../questData');
+const QuestData = require('../../games/pulpulak/data/questData');
 
 class QuestDataManager {
     constructor(gameDataManager) {

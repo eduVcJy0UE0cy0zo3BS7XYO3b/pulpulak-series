@@ -1,9 +1,9 @@
-const CoopStoryData = require('./coopStoryData');
-const LocationData = require('./locationData');
-const NPCData = require('./npcData');
-const QuestData = require('./questData');
-const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./constants');
-const { processQuestAction } = require('./questActionHandlers');
+const CoopStoryData = require('../games/pulpulak/data/coopStoryData');
+const LocationData = require('../games/pulpulak/data/locationData');
+const NPCData = require('../games/pulpulak/data/npcData');
+const QuestData = require('../games/pulpulak/data/questData');
+const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('../games/pulpulak/data/constants');
+const { processQuestAction } = require('../games/pulpulak/data/questActionHandlers');
 const GameStateManager = require('./gameStateManager');
 const ImmerStateManager = require('./stateManager');
 const dataManagerFactory = require('./managers/DataManagerFactory');

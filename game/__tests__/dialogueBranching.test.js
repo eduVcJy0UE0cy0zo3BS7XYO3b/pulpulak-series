@@ -1,6 +1,6 @@
 const CoopGameLogic = require('../coopGameLogic');
 const { refreshGameState } = require('./testHelpers');
-const NPCData = require('../npcData');
+const NPCData = require('../../games/pulpulak/data/npcData');
 
 describe('Branching Dialogue System', () => {
     let gameLogic;
