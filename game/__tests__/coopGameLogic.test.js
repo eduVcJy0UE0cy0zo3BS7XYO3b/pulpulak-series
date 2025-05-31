@@ -256,7 +256,12 @@ describe('CoopGameLogic', () => {
 
             test('должна добавлять кнопку смены одежды когда нет NPC', () => {
                 const gameState = gameLogic.games.get(roomId);
-                gameState.npcsPresent = [];
+                // Правильно устанавливаем отсутствие NPC для обоих персонажей
+                gameState.stats.princess.npcsPresent = [];
+                gameState.stats.helper.npcsPresent = [];
+                // Убеждаемся, что оба персонажа в одной локации, которая позволяет смену одежды
+                gameState.stats.princess.location = 'princess_chamber';
+                gameState.stats.helper.location = 'princess_chamber';
                 const sceneData = CoopStoryData.getScene();
 
                 const choices = gameLogic.getChoicesForCharacter(gameState, 'princess', sceneData);
