@@ -436,7 +436,7 @@ describe('S-Expression Quest System', () => {
     });
 });
 
-describe('Real Quest Scenarios', () => {
+describe('Functional Quest Tests', () => {
     let runner;
     let gameState;
 
@@ -444,11 +444,10 @@ describe('Real Quest Scenarios', () => {
         gameState = {
             currentLocation: 'throne_room',
             currentNPC: 'royal_advisor',
-            currentOutfit: 'noble',
+            currentOutfit: 'princess_dress',
             inventory: [],
-            memory: { kingdom_talked: true },
+            memory: {},
             npcMemory: {},
-            // Removed loyalty system
             startedQuests: new Set(),
             completedQuests: new Set(),
             activeQuests: new Map(),
@@ -457,50 +456,368 @@ describe('Real Quest Scenarios', () => {
         runner = new QuestRunner(gameState);
     });
 
-    test('should complete princess quest flow', () => {
-        // Create a simple test quest instead of using the problematic file
-        const testQuest = `
-        (quest simple_princess_quest
-          (metadata
-            (title "Simple Princess Quest")
-            (character princess))
-          (triggers
-            (on-dialogue royal_advisor
-              (when (and
-                (outfit-is "noble")
-                (at-location throne_room)))))
-          (steps
-            (step get_quest
-              (description "Get quest from advisor")
-              (require
-                (at-location throne_room)
-                (talking-to royal_advisor))
-              (actions
-                (set-memory "quest_accepted" true)
-                (show-message "Quest accepted!")))
-            (step complete_quest_step
-              (description "Complete the quest")
-              (require
-                (has-memory "quest_accepted"))
-              (actions
-                (complete-quest)))))`;
+    describe('Functional Quest Structure Tests', () => {
+        test('should parse functional quest with initial-state', () => {
+            const functionalQuest = `
+            (quest functional_test_quest
+              (metadata
+                (title "Functional Test Quest")
+                (character helper))
+              (initial-state
+                (player-location kitchen)
+                (player-outfit common)
+                (inventory '())
+                (quest-stage 0))
+              (goal-state
+                (conditions
+                  (quest-completed)
+                  (player-has-item test_item)))
+              (solution-path
+                (move kitchen)
+                (interact cook get_task)
+                (collect-item test_item))
+              (test-functions
+                (test-initial-state
+                  (lambda ()
+                    (and
+                      (= (player-location) kitchen)
+                      (= (player-outfit) common)))))
+              (triggers
+                (on-dialogue cook
+                  (when (outfit-is common))))
+              (steps
+                (step start_test
+                  (description "Start functional test")
+                  (require (at-location kitchen))
+                  (actions
+                    (give-items test_item)
+                    (complete-quest)))))`;
+            
+            const quest = runner.loadQuest(functionalQuest);
+            
+            expect(quest.id).toBe('functional_test_quest');
+            expect(quest.initialState).toBeDefined();
+            expect(quest.goalState).toBeDefined();
+            expect(quest.solutionPath).toBeDefined();
+            expect(quest.testFunctions).toBeDefined();
+        });
         
-        runner.loadQuest(testQuest);
+        test('should validate solution path', () => {
+            const questWithPath = `
+            (quest path_test_quest
+              (metadata (title "Path Test"))
+              (solution-path
+                (move location1)
+                (interact npc1 action1)
+                (move location2)
+                (collect-item item1))
+              (triggers (on-dialogue any))
+              (steps
+                (step test_step
+                  (require (at-location location1))
+                  (actions (complete-quest)))))`;
+            
+            const quest = runner.loadQuest(questWithPath);
+            
+            expect(quest.solutionPath).toHaveLength(4);
+            expect(quest.solutionPath[0]).toEqual(['move', 'location1']);
+            expect(quest.solutionPath[1]).toEqual(['interact', 'npc1', 'action1']);
+            expect(quest.solutionPath[2]).toEqual(['move', 'location2']);
+            expect(quest.solutionPath[3]).toEqual(['collect-item', 'item1']);
+        });
         
-        const character = { id: 'princess', currentOutfit: 'noble' };
+        test('should handle test-sequence declarations', () => {
+            const questWithTests = `
+            (quest test_sequence_quest
+              (metadata (title "Test Sequence Quest"))
+              (triggers (on-dialogue any))
+              (steps
+                (step single_step
+                  (actions (complete-quest))))
+              (test-sequence complete-quest-test
+                (description "Full test sequence")
+                (assert-initial-state)
+                (move start_location)
+                (interact start_npc start_action)
+                (assert (quest-completed))))`;
+            
+            const quest = runner.loadQuest(questWithTests);
+            
+            expect(quest.testSequences).toBeDefined();
+            expect(quest.testSequences['complete-quest-test']).toBeDefined();
+            expect(quest.testSequences['complete-quest-test'].description).toBe('Full test sequence');
+        });
+    });
+    
+    describe('Functional Quest Execution Tests', () => {
+        test('should execute helper potion quest functionally', () => {
+            // Simplified version of helper potion quest for testing
+            const helperPotionQuest = `
+            (quest helper_potion_test
+              (metadata
+                (title "Helper Potion Test")
+                (character helper))
+              (initial-state
+                (player-location kitchen)
+                (player-outfit common)
+                (quest-stage 0))
+              (variables
+                (quest_stage 0)
+                (has_moonflower false)
+                (ingredients_collected '()))
+              (triggers
+                (on-dialogue cook
+                  (when (outfit-is common))))
+              (steps
+                (step start_quest
+                  (require
+                    (and
+                      (at-location kitchen)
+                      (outfit-is common)
+                      (= $quest_stage 0)))
+                  (actions
+                    (set-quest-var quest_stage 1)
+                    (set-memory quest_started true)
+                    (reveal-location greenhouse)))
+                (step get_ingredient
+                  (require
+                    (and
+                      (at-location greenhouse)
+                      (>= $quest_stage 1)
+                      (not $has_moonflower)))
+                  (actions
+                    (give-items moonflower)
+                    (set-quest-var has_moonflower true)
+                    (add-item-to-list ingredients_collected moonflower)
+                    (complete-quest)))))`;
+            
+            runner.loadQuest(helperPotionQuest);
+            
+            const character = { id: 'helper', currentOutfit: 'common' };
+            gameState.currentOutfit = 'common';
+            gameState.currentLocation = 'kitchen';
+            gameState.currentNPC = 'cook'; // Set correct NPC for trigger
+            
+            // Test quest availability
+            expect(runner.canStartQuest('helper_potion_test', character)).toBe(true);
+            
+            // Start quest
+            runner.startQuest('helper_potion_test', character);
+            
+            // Process first step
+            let result = runner.processCurrentStep('helper_potion_test', character);
+            expect(result.processed).toBe(true);
+            expect(gameState.memory.quest_started).toBe(true);
+            
+            // Move to greenhouse and process second step
+            gameState.currentLocation = 'greenhouse';
+            result = runner.processCurrentStep('helper_potion_test', character);
+            expect(result.processed).toBe(true);
+            expect(gameState.inventory).toContain('moonflower');
+            expect(result.completed).toBe(true);
+        });
         
-        // Start quest
-        expect(runner.canStartQuest('simple_princess_quest', character)).toBe(true);
-        runner.startQuest('simple_princess_quest', character);
+        test('should execute princess relic quest functionally', () => {
+            // Simplified version of princess relic quest for testing
+            const princessRelicQuest = `
+            (quest princess_relic_test
+              (metadata
+                (title "Princess Relic Test")
+                (character princess))
+              (initial-state
+                (player-location throne_room)
+                (player-outfit princess_dress)
+                (quest-stage 0))
+              (variables
+                (quest_stage 0)
+                (amulet_found false))
+              (triggers
+                (on-dialogue royal_advisor
+                  (when (outfit-is princess_dress))))
+              (steps
+                (step get_quest
+                  (require
+                    (and
+                      (at-location throne_room)
+                      (outfit-is princess_dress)
+                      (= $quest_stage 0)))
+                  (actions
+                    (set-quest-var quest_stage 1)
+                    (set-memory amulet_missing true)
+                    (reveal-location garden)))
+                (step find_amulet
+                  (require
+                    (and
+                      (at-location garden)
+                      (>= $quest_stage 1)
+                      (not $amulet_found)))
+                  (actions
+                    (collect-item royal_amulet)
+                    (set-quest-var amulet_found true)
+                    (set-quest-var quest_stage 2)))
+                (step return_amulet
+                  (require
+                    (and
+                      (at-location throne_room)
+                      (= $quest_stage 2)
+                      $amulet_found))
+                  (actions
+                    (take-items royal_amulet)
+                    (set-memory amulet_returned true)
+                    (complete-quest)))))`;
+            
+            runner.loadQuest(princessRelicQuest);
+            
+            const character = { id: 'princess', currentOutfit: 'princess_dress' };
+            gameState.currentOutfit = 'princess_dress';
+            gameState.currentLocation = 'throne_room';
+            gameState.currentNPC = 'royal_advisor'; // Set correct NPC for trigger
+            
+            // Test initial state
+            expect(runner.canStartQuest('princess_relic_test', character)).toBe(true);
+            
+            // Start quest
+            runner.startQuest('princess_relic_test', character);
+            
+            // Process quest steps
+            let result = runner.processCurrentStep('princess_relic_test', character);
+            expect(result.processed).toBe(true);
+            expect(gameState.memory.amulet_missing).toBe(true);
+            
+            // Move to garden and find amulet
+            gameState.currentLocation = 'garden';
+            result = runner.processCurrentStep('princess_relic_test', character);
+            expect(result.processed).toBe(true);
+            expect(gameState.inventory).toContain('royal_amulet');
+            
+            // Return to throne room and complete quest
+            gameState.currentLocation = 'throne_room';
+            result = runner.processCurrentStep('princess_relic_test', character);
+            expect(result.processed).toBe(true);
+            expect(result.completed).toBe(true);
+            expect(gameState.memory.amulet_returned).toBe(true);
+        });
+    });
+    
+    describe('Functional Quest Testing Framework', () => {
+        test('should execute test-sequence validation', () => {
+            const questWithValidation = `
+            (quest validation_test_quest
+              (metadata (title "Validation Test"))
+              (triggers (on-dialogue any))
+              (steps
+                (step test_step
+                  (require (at-location test_location))
+                  (actions
+                    (set-memory test_completed true)
+                    (complete-quest))))
+              (test-sequence validation-test
+                (description "Test validation sequence")
+                (move test_location)
+                (assert (at-location test_location))
+                (interact any test_action)
+                (assert (get-memory test_completed))
+                (assert (quest-completed))))`;
+            
+            runner.loadQuest(questWithValidation);
+            
+            const quest = runner.getQuest('validation_test_quest');
+            expect(quest.testSequences['validation-test']).toBeDefined();
+            
+            // Test that validation framework is present
+            const testSeq = quest.testSequences['validation-test'];
+            expect(testSeq.steps).toContainEqual(['move', 'test_location']);
+            expect(testSeq.steps).toContainEqual(['assert', ['at-location', 'test_location']]);
+        });
         
-        // Process first step (get quest)
-        let result = runner.processCurrentStep('simple_princess_quest', character);
-        expect(result.processed).toBe(true);
-        expect(gameState.memory.quest_accepted).toBe(true);
+        test('should handle negative test cases', () => {
+            const questWithNegativeTests = `
+            (quest negative_test_quest
+              (metadata (title "Negative Test Quest"))
+              (triggers (on-dialogue any))
+              (steps
+                (step main_step
+                  (require (outfit-is required_outfit))
+                  (actions (complete-quest))))
+              (test-case negative-wrong-outfit
+                (description "Test with wrong outfit")
+                (change-outfit wrong_outfit)
+                (assert (not (can-start-quest negative_test_quest)))
+                (assert-error (interact any test_action))))`;
+            
+            runner.loadQuest(questWithNegativeTests);
+            
+            const quest = runner.getQuest('negative_test_quest');
+            expect(quest.testCases).toBeDefined();
+            expect(quest.testCases['negative-wrong-outfit']).toBeDefined();
+        });
+    });
+    
+    describe('Quest Path Validation', () => {
+        test('should validate complete solution path execution', () => {
+            const pathValidationQuest = `
+            (quest path_validation_quest
+              (metadata (title "Path Validation Test"))
+              (solution-path
+                (move start_location)
+                (interact start_npc get_task)
+                (move work_location)
+                (collect-item work_item)
+                (move end_location)
+                (interact end_npc complete_task))
+              (triggers (on-dialogue start_npc))
+              (steps
+                (step path_step
+                  (actions (complete-quest)))))`;
+            
+            runner.loadQuest(pathValidationQuest);
+            
+            const quest = runner.getQuest('path_validation_quest');
+            expect(quest.solutionPath).toHaveLength(6);
+            
+            // Validate path structure
+            const expectedPath = [
+                ['move', 'start_location'],
+                ['interact', 'start_npc', 'get_task'],
+                ['move', 'work_location'],
+                ['collect-item', 'work_item'],
+                ['move', 'end_location'],
+                ['interact', 'end_npc', 'complete_task']
+            ];
+            
+            expect(quest.solutionPath).toEqual(expectedPath);
+        });
         
-        // Process completion step
-        result = runner.processCurrentStep('simple_princess_quest', character);
-        expect(result.processed).toBe(true);
-        expect(result.completed).toBe(true);
+        test('should validate alternative paths', () => {
+            const multiPathQuest = `
+            (quest multi_path_quest
+              (metadata (title "Multi Path Test"))
+              (solution-path
+                (move location1)
+                (interact npc1 action1))
+              (alternative-paths
+                (path-direct
+                  (move location2)
+                  (interact npc2 action2))
+                (path-indirect
+                  (move location3)
+                  (collect-item item1)
+                  (move location1)
+                  (interact npc1 action1)))
+              (triggers (on-dialogue any))
+              (steps
+                (step multi_step
+                  (actions (complete-quest)))))`;
+            
+            runner.loadQuest(multiPathQuest);
+            
+            const quest = runner.getQuest('multi_path_quest');
+            expect(quest.alternativePaths).toBeDefined();
+            expect(quest.alternativePaths['path-direct']).toBeDefined();
+            expect(quest.alternativePaths['path-indirect']).toBeDefined();
+            
+            expect(quest.alternativePaths['path-direct']).toHaveLength(2);
+            expect(quest.alternativePaths['path-indirect']).toHaveLength(4);
+        });
     });
 });
