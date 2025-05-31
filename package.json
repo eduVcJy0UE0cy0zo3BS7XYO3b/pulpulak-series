@@ -14,7 +14,9 @@
         "start": "node server.js",
         "dev": "node server.js",
         "test": "jest",
-        "test:watch": "jest --watch"
+        "test:watch": "jest --watch",
+        "test:scheme": "node game/simple-test-runner.js",
+        "test:scheme:quick": "node game/simple-test-runner.js quick"
     },
     "devDependencies": {
         "jest": "^29.7.0"
