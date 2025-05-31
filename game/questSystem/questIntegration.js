@@ -46,13 +46,16 @@ class QuestIntegration {
             if (!gameState) return;
             
             // Store dynamic dialogue options for the quest character, not current turn character
-            // Check which character has the active quest
+            // Check which character has an active quest
             let questCharacter = null;
-            if (gameState.quests.helper.active && gameState.quests.helper.active.id === 'helper_secret_potion') {
-                questCharacter = { id: 'helper' };
-            } else if (gameState.quests.princess.active && gameState.quests.princess.active.id === 'princess_lost_relic') {
-                questCharacter = { id: 'princess' };
-            } else {
+            for (const [characterId, characterQuests] of Object.entries(gameState.quests)) {
+                if (characterQuests.active) {
+                    questCharacter = { id: characterId };
+                    break;
+                }
+            }
+            
+            if (!questCharacter) {
                 questCharacter = this.getCurrentCharacter(); // fallback
             }
             
@@ -73,7 +76,7 @@ class QuestIntegration {
             }
             
             // Add the dynamic dialogue option
-            const questAction = option.effects || (option.id === 'ask_about_greenhouse' ? 'go_to_greenhouse' : 'find_gardener_quest');
+            const questAction = option.effects || option.quest_action || null;
             console.log(`Adding dynamic dialogue: ${option.id}, effects: ${option.effects}, questAction: ${questAction}`);
             gameState.dynamicDialogues[character.id][npcId].push({
                 id: option.id,
@@ -168,6 +171,108 @@ class QuestIntegration {
         });
     }
 
+    /**
+     * Handle quest action from dialogue system
+     */
+    handleQuestAction(questAction, character) {
+        console.log(`Handling quest action: ${questAction} for character: ${character.id}`);
+        
+        // First try to advance existing quest steps
+        const stepAdvanced = this.tryAdvanceQuestStep(questAction, character);
+        if (stepAdvanced) {
+            console.log(`Advanced quest step with action: ${questAction}`);
+            return true;
+        }
+        
+        // If no step was advanced, try to find quest that has this quest action as a trigger
+        const questId = this.findQuestByAction(questAction, character);
+        
+        if (!questId) {
+            console.log(`No S-expression quest found for action: ${questAction}`);
+            return false;
+        }
+        
+        // Check if quest can be started and start it
+        const started = this.startQuest(questId, true, character);
+        if (started) {
+            console.log(`Started S-expression quest: ${questId}`);
+            return true;
+        } else {
+            console.log(`Cannot start quest ${questId} for character ${character.id}`);
+            return false;
+        }
+    }
+
+    /**
+     * Try to advance quest step based on quest action
+     */
+    tryAdvanceQuestStep(questAction, character) {
+        const gameState = this.getCurrentGameState();
+        if (!gameState || !gameState.quests) return false;
+        
+        const characterQuests = gameState.quests[character.id];
+        if (!characterQuests || !characterQuests.active) return false;
+        
+        const activeQuestId = characterQuests.active.id;
+        const quest = this.questRunner.engine.quests.get(activeQuestId);
+        if (!quest) return false;
+        
+        // Find quest step that matches this action
+        const currentStepIndex = characterQuests.active.currentStep || 0;
+        const questStep = quest.steps[currentStepIndex];
+        
+        if (!questStep) return false;
+        
+        // Check if this step id matches the quest action or if step should handle this action
+        if (questStep.id === questAction) {
+            // Update quest runner state
+            this.updateQuestRunnerState();
+            
+            // Process the current step
+            const result = this.processQuestStep(character.id);
+            
+            if (result && result.processed) {
+                console.log(`Quest step '${questStep.id}' completed for quest '${activeQuestId}'`);
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Find quest that can be triggered by the given quest action
+     */
+    findQuestByAction(questAction, character) {
+        for (const [questId, quest] of this.questRunner.engine.quests) {
+            // Check if quest is for this character
+            if (quest.metadata.character && quest.metadata.character !== character.id) {
+                continue;
+            }
+            
+            // Check if quest has quest-action mapping in its variables or metadata
+            if (quest.variables && quest.variables.has('quest_action')) {
+                const mappedAction = quest.variables.get('quest_action');
+                if (mappedAction === questAction) {
+                    return questId;
+                }
+            }
+            
+            // Check if quest metadata has quest-action
+            if (quest.metadata.quest_action === questAction) {
+                return questId;
+            }
+            
+            // Check if any trigger references this quest action
+            for (const trigger of quest.triggers) {
+                if (trigger.quest_action === questAction) {
+                    return questId;
+                }
+            }
+        }
+        
+        return null;
+    }
 
     /**
      * Load all quest definitions
@@ -320,6 +425,35 @@ class QuestIntegration {
         }
 
         return updates;
+    }
+
+    /**
+     * Handle dialogue choice made by player to advance quest steps
+     */
+    handleDialogueChoice(npcId, choiceId, character) {
+        this.updateQuestRunnerState();
+        
+        // Set current NPC context for quest evaluation
+        this.questRunner.gameState.currentNPC = npcId;
+        
+        // Check if player has active quest and try to advance it
+        const gameState = this.getCurrentGameState();
+        if (!gameState || !gameState.quests) return false;
+        
+        const characterQuests = gameState.quests[character.id || character];
+        if (!characterQuests || !characterQuests.active) return false;
+        
+        const activeQuestId = characterQuests.active.id;
+        console.log(`Checking quest progress for ${activeQuestId} after dialogue choice ${choiceId} with ${npcId}`);
+        
+        // Try to process current quest step
+        const result = this.processQuestStep(character.id || character);
+        if (result && result.processed) {
+            console.log(`Quest step advanced for ${activeQuestId}`);
+            return true;
+        }
+        
+        return false;
     }
 
     /**
