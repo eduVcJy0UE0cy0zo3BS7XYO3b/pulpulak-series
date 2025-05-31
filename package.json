@@ -7,7 +7,8 @@
         "express": "^4.18.2",
         "immer": "^10.1.1",
         "mithril": "^2.3.1",
-        "socket.io": "^4.7.2"
+        "socket.io": "^4.7.2",
+        "tau-prolog": "^0.3.4"
     },
     "scripts": {
         "start": "node server.js",
