@@ -112,8 +112,12 @@ describe('Branching Dialogue System', () => {
     describe('Branching Dialogues', () => {
         test('должен показывать дополнительные выборы после основного выбора', () => {
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'secret_garden';
-            gameState.stats.princess.outfit = 'common_dress';
+            // Используем Immer для безопасного обновления состояния
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'secret_garden';
+                draft.stats.princess.outfit = 'common_dress';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Начинаем диалог с садовником
             gameLogic.processNPCInteraction(gameState, 'gardener', 'princess');
@@ -138,8 +142,12 @@ describe('Branching Dialogue System', () => {
 
         test('должен корректно завершать диалог после дополнительных выборов', () => {
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'secret_garden';
-            gameState.stats.princess.outfit = 'common_dress';
+            // Используем Immer для безопасного обновления состояния
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'secret_garden';
+                draft.stats.princess.outfit = 'common_dress';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Начинаем диалог и делаем выбор с дополнительными опциями
             gameLogic.processNPCInteraction(gameState, 'gardener', 'princess');
@@ -166,8 +174,12 @@ describe('Branching Dialogue System', () => {
 
         test('должен применять эффекты из основного выбора', () => {
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'secret_garden';
-            gameState.stats.princess.outfit = 'common_dress';
+            // Используем Immer для безопасного обновления состояния
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'secret_garden';
+                draft.stats.princess.outfit = 'common_dress';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             const inventoryBefore = gameState.stats.princess.inventory.length;
             
@@ -222,8 +234,12 @@ describe('Branching Dialogue System', () => {
     describe('Integration with Game Logic', () => {
         test('должен сохранять память через полный игровой цикл', () => {
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'kitchen';
-            gameState.stats.princess.outfit = 'common_dress';
+            // Используем Immer для безопасного обновления состояния
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'kitchen';
+                draft.stats.princess.outfit = 'common_dress';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Полный цикл взаимодействия
             gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
@@ -244,10 +260,14 @@ describe('Branching Dialogue System', () => {
 
         test('должен работать независимо для разных персонажей', () => {
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'kitchen';
-            gameState.stats.helper.location = 'kitchen';
-            gameState.stats.princess.outfit = 'common_dress';
-            gameState.stats.helper.outfit = 'common_dress';
+            // Используем Immer для безопасного обновления состояния
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'kitchen';
+                draft.stats.helper.location = 'kitchen';
+                draft.stats.princess.outfit = 'common_dress';
+                draft.stats.helper.outfit = 'common_dress';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Взаимодействие княжны
             gameLogic.processNPCInteraction(gameState, 'cook', 'princess');

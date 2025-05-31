@@ -93,7 +93,9 @@ class GameDataManager {
     updateScene(roomId, newScene) {
         const gameState = this.getGame(roomId);
         if (gameState) {
-            gameState.currentScene = newScene;
+            // Используем замену объекта вместо мутации
+            const updatedState = { ...gameState, currentScene: newScene };
+            this.games.set(roomId, updatedState);
         }
     }
 
@@ -103,7 +105,10 @@ class GameDataManager {
     switchTurn(roomId) {
         const gameState = this.getGame(roomId);
         if (gameState) {
-            gameState.turnOrder = gameState.turnOrder === 'princess' ? 'helper' : 'princess';
+            // Используем замену объекта вместо мутации
+            const newTurnOrder = gameState.turnOrder === 'princess' ? 'helper' : 'princess';
+            const updatedState = { ...gameState, turnOrder: newTurnOrder };
+            this.games.set(roomId, updatedState);
         }
     }
 
@@ -113,7 +118,15 @@ class GameDataManager {
     updateGlobalQuestMemory(roomId, questId, value) {
         const gameState = this.getGame(roomId);
         if (gameState) {
-            gameState.globalQuestMemory[questId] = value;
+            // Используем замену объекта вместо мутации
+            const updatedState = { 
+                ...gameState, 
+                globalQuestMemory: { 
+                    ...gameState.globalQuestMemory, 
+                    [questId]: value 
+                } 
+            };
+            this.games.set(roomId, updatedState);
         }
     }
 

@@ -109,9 +109,12 @@ describe('Movement System', () => {
     describe('Outfit restrictions based on location', () => {
         test('не должен позволить менять одежду в публичных местах', () => {
             // Перемещаемся в тронный зал
-            const gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'throne_room';
-            gameState.stats.helper.location = 'throne_room';
+            let gameState = gameLogic.games.get(roomId);
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'throne_room';
+                draft.stats.helper.location = 'throne_room';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Проверяем, что нельзя переодеваться
             const canSwitch = gameLogic.canSwitchOutfits(gameState, 'princess');

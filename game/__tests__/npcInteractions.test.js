@@ -225,15 +225,21 @@ describe('NPC Interactions', () => {
         });
 
         test('должен добавлять NPC выборы только в локациях где они есть', () => {
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
             
             // В спальне никого нет
-            gameState.stats.princess.location = 'princess_chamber';
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'princess_chamber';
+            });
+            gameLogic.games.set(roomId, gameState);
             const chamberChoices = gameLogic.getNPCInteractionChoices(gameState, 'princess');
             expect(chamberChoices.length).toBe(0);
             
             // В тронном зале есть NPC
-            gameState.stats.princess.location = 'throne_room';
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'throne_room';
+            });
+            gameLogic.games.set(roomId, gameState);
             const throneChoices = gameLogic.getNPCInteractionChoices(gameState, 'princess');
             expect(throneChoices.length).toBeGreaterThan(0);
             expect(throneChoices.every(c => c.isNPCInteraction)).toBe(true);
@@ -243,8 +249,11 @@ describe('NPC Interactions', () => {
     describe('NPC effects and rewards', () => {
         test('должен давать предметы через диалог', () => {
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'kitchen';
-            gameState.stats.princess.outfit = 'common_dress'; // Чтобы повар был дружелюбен
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'kitchen';
+                draft.stats.princess.outfit = 'common_dress'; // Чтобы повар был дружелюбен
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Начинаем диалог с поваром
             gameLogic.processNPCInteraction(gameState, 'cook', 'princess');

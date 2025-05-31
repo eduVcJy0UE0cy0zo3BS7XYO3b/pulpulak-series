@@ -240,7 +240,7 @@ class CoopGameLogic {
         if (choice.effects) {
             gameState = this.applyEffects(gameState, choice.effects, character);
             // Сохраняем обновленное состояние
-            Object.assign(this.gameData.getGame(gameState.roomId), gameState);
+            this.gameData.games.set(gameState.roomId, gameState);
         }
 
         // Проверяем, меняется ли сцена
@@ -475,7 +475,7 @@ class CoopGameLogic {
             updatedGameState = this.immerStateManager.updateState(gameState, draft => {
                 draft.npcMemory[character][npcId] = {};
             });
-            this.games.set(updatedGameState.roomId, updatedGameState);
+            this.gameData.games.set(updatedGameState.roomId, updatedGameState);
         }
         const npcMemory = updatedGameState.npcMemory[character][npcId];
         
@@ -500,7 +500,7 @@ class CoopGameLogic {
                 isFollowUp: false // Флаг для дополнительных выборов
             };
         });
-        this.games.set(updatedGameState.roomId, updatedGameState);
+        this.gameData.games.set(updatedGameState.roomId, updatedGameState);
 
         return { 
             success: true, 
@@ -518,7 +518,7 @@ class CoopGameLogic {
 
     // Обработка выбора в диалоге с NPC
     processNPCDialogueChoice(roomId, playerId, choiceId, character) {
-        let gameState = this.games.get(roomId);
+        let gameState = this.gameData.getGame(roomId);
         if (!gameState) {
             return { success: false, message: "Игра не найдена" };
         }
@@ -576,13 +576,13 @@ class CoopGameLogic {
                 }
             }
         });
-        this.games.set(gameState.roomId, gameState);
+        this.gameData.games.set(gameState.roomId, gameState);
 
         // Обрабатываем квестовые действия
         const questResult = this.processQuestAction(gameState, character, choiceId, result);
         if (questResult && questResult.success && questResult.gameState) {
             gameState = questResult.gameState;
-            this.games.set(gameState.roomId, gameState);
+            this.gameData.games.set(gameState.roomId, gameState);
         }
 
         // Обновляем NPC в локациях после квестовых действий (NPC могли переместиться)
@@ -590,7 +590,7 @@ class CoopGameLogic {
             draft.stats.princess.npcsPresent = this.getNPCsForLocation(draft.stats.princess.location, gameState, 'princess');
             draft.stats.helper.npcsPresent = this.getNPCsForLocation(draft.stats.helper.location, gameState, 'helper');
         });
-        this.games.set(gameState.roomId, gameState);
+        this.gameData.games.set(gameState.roomId, gameState);
 
         // Сохраняем attitude до очистки диалога
         const attitude = gameState.npcDialogues[character]?.attitude;
@@ -602,7 +602,7 @@ class CoopGameLogic {
                 draft.npcDialogues[character].greeting = result.response;
                 draft.npcDialogues[character].isFollowUp = true;
             });
-            this.games.set(gameState.roomId, gameState);
+            this.gameData.games.set(gameState.roomId, gameState);
 
             return { 
                 success: true, 
@@ -616,7 +616,7 @@ class CoopGameLogic {
                 draft.npcDialogues[character] = null;
             });
             gameState = this.switchTurn(gameState);
-            this.games.set(gameState.roomId, gameState);
+            this.gameData.games.set(gameState.roomId, gameState);
 
             return { 
                 success: true, 
@@ -628,7 +628,7 @@ class CoopGameLogic {
 
     // Закрытие диалога с NPC
     closeNPCDialogue(roomId, playerId) {
-        let gameState = this.games.get(roomId);
+        let gameState = this.gameData.getGame(roomId);
         if (!gameState) {
             return { success: false, message: "Игра не найдена" };
         }
@@ -655,7 +655,7 @@ class CoopGameLogic {
         gameState = this.immerStateManager.updateState(gameState, draft => {
             draft.npcDialogues[character] = null;
         });
-        this.games.set(gameState.roomId, gameState);
+        this.gameData.games.set(gameState.roomId, gameState);
 
         return { 
             success: true, 
@@ -687,7 +687,8 @@ class CoopGameLogic {
                 draft.globalQuestMemory.helper_secret_potion = true;
             }
         });
-        this.games.set(updatedState.roomId, updatedState);
+        // Сохраняем обновленное состояние
+        this.gameData.games.set(updatedState.roomId, updatedState);
         
         return { 
             success: true, 
@@ -711,7 +712,8 @@ class CoopGameLogic {
                 draftQuest.steps[draftQuest.currentStep].completed = true;
                 draftQuest.currentStep++;
             });
-            this.games.set(updatedState.roomId, updatedState);
+            // Сохраняем обновленное состояние
+            this.gameData.games.set(updatedState.roomId, updatedState);
 
             if (updatedState.quests[character].active.currentStep >= updatedState.quests[character].active.steps.length) {
                 // Квест завершён
@@ -759,7 +761,8 @@ class CoopGameLogic {
                     draft.globalQuestMemory.helper_secret_potion = true;
                 }
             });
-            this.games.set(updatedState.roomId, updatedState);
+            // Сохраняем обновленное состояние
+            this.gameData.games.set(updatedState.roomId, updatedState);
             return updatedState;
         }
         return gameState;
@@ -809,18 +812,8 @@ class CoopGameLogic {
         return {
             get: (roomId) => this.gameData.getGame(roomId),
             set: (roomId, gameState) => {
-                // Для обратной совместимости с тестами, обновляем состояние напрямую
-                // В будущем это нужно будет заменить на вызовы через data managers
-                const originalGame = this.gameData.getGame(roomId);
-                if (originalGame) {
-                    try {
-                        // Пытаемся обновить исходный объект игры
-                        Object.assign(originalGame, gameState);
-                    } catch (error) {
-                        // Если объект заморожен, просто логируем предупреждение
-                        console.warn('Не удалось обновить состояние игры напрямую:', error.message);
-                    }
-                }
+                // Для обратной совместимости - просто заменяем объект в Map
+                this.gameData.games.set(roomId, gameState);
             },
             has: (roomId) => this.gameData.hasGame(roomId),
             delete: (roomId) => this.gameData.deleteGame(roomId)

@@ -31,7 +31,7 @@ class PlayerDataManager {
                 // Обновляем список NPC в новой локации
                 draft.stats[character].npcsPresent = this.getNPCsForLocation(newLocation, gameState, character);
             });
-            Object.assign(gameState, updatedGameState);
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -44,7 +44,7 @@ class PlayerDataManager {
             const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
                 draft.stats[character].outfit = newOutfit;
             });
-            Object.assign(gameState, updatedGameState);
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -59,8 +59,8 @@ class PlayerDataManager {
                 draft.stats.princess.outfit = draft.stats.helper.outfit;
                 draft.stats.helper.outfit = tempOutfit;
             });
-            // Обновляем состояние в GameDataManager
-            Object.assign(gameState, updatedGameState);
+            // Заменяем объект в GameDataManager
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -73,7 +73,7 @@ class PlayerDataManager {
             const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
                 draft.stats[character].inventory.push(item);
             });
-            Object.assign(gameState, updatedGameState);
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -90,7 +90,7 @@ class PlayerDataManager {
                     inventory.splice(index, 1);
                 }
             });
-            Object.assign(gameState, updatedGameState);
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -111,7 +111,7 @@ class PlayerDataManager {
             const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
                 draft.stats[character].awareness += change;
             });
-            Object.assign(gameState, updatedGameState);
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -165,7 +165,10 @@ class PlayerDataManager {
         const gameState = this.gameData.getGame(roomId);
         if (gameState?.stats[character]) {
             const location = gameState.stats[character].location;
-            gameState.stats[character].npcsPresent = this.getNPCsForLocation(location, gameState, character);
+            const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
+                draft.stats[character].npcsPresent = this.getNPCsForLocation(location, gameState, character);
+            });
+            this.gameData.games.set(roomId, updatedGameState);
         }
     }
 
@@ -173,8 +176,26 @@ class PlayerDataManager {
      * Обновить списки NPC для всех персонажей
      */
     updateAllNPCsPresent(roomId) {
-        this.updateNPCsPresent(roomId, 'princess');
-        this.updateNPCsPresent(roomId, 'helper');
+        const gameState = this.gameData.getGame(roomId);
+        if (!gameState) return;
+
+        const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
+            // Обновляем NPC для княжны
+            draft.stats.princess.npcsPresent = this.getNPCsForLocation(
+                draft.stats.princess.location, 
+                gameState, 
+                'princess'
+            );
+            
+            // Обновляем NPC для помощницы
+            draft.stats.helper.npcsPresent = this.getNPCsForLocation(
+                draft.stats.helper.location, 
+                gameState, 
+                'helper'
+            );
+        });
+        
+        this.gameData.games.set(roomId, updatedGameState);
     }
 
     /**
@@ -226,6 +247,7 @@ class PlayerDataManager {
         
         return JSON.parse(JSON.stringify(gameState.stats[character]));
     }
+
 
     /**
      * Получить полную копию статистики всех игроков

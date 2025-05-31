@@ -93,11 +93,14 @@ describe('Game Integration Tests', () => {
             gameLogic.startGame(roomId, players);
             
             // Мокаем переход в тронный зал для обеих персонажей
-            const gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'throne_room';
-            gameState.stats.princess.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
-            gameState.stats.helper.location = 'throne_room';
-            gameState.stats.helper.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
+            let gameState = gameLogic.games.get(roomId);
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'throne_room';
+                draft.stats.princess.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
+                draft.stats.helper.location = 'throne_room';
+                draft.stats.helper.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
+            });
+            gameLogic.games.set(roomId, gameState);
 
             // Пытаемся создать запрос
             const swapRequest = gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
@@ -135,10 +138,13 @@ describe('Game Integration Tests', () => {
     describe('Сохранение состояния между действиями', () => {
         test('должен сохранять эффекты выборов', () => {
             gameLogic.startGame(roomId, players);
-            const gameState = gameLogic.games.get(roomId);
+            let gameState = gameLogic.games.get(roomId);
 
             // Имитируем выбор с эффектом awareness
-            gameState.stats.princess.awareness = 5;
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.awareness = 5;
+            });
+            gameLogic.games.set(roomId, gameState);
             
             // Делаем другие действия
             gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');

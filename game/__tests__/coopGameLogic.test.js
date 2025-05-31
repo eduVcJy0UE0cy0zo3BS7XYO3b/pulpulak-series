@@ -12,6 +12,10 @@ describe('CoopGameLogic', () => {
     let players;
 
     beforeEach(() => {
+        // Сбрасываем data managers для каждого теста
+        const dataManagerFactory = require('../managers/DataManagerFactory');
+        dataManagerFactory.resetManagers();
+        
         gameLogic = new CoopGameLogic();
         roomId = 'TEST123';
         players = {
@@ -89,8 +93,11 @@ describe('CoopGameLogic', () => {
 
             test('не должна создавать запрос если есть NPC', () => {
                 // Устанавливаем NPC в локации для княжны
-                const gameState = gameLogic.games.get(roomId);
-                gameState.stats.princess.npcsPresent = ['Стражник'];
+                let gameState = gameLogic.games.get(roomId);
+                gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                    draft.stats.princess.npcsPresent = ['Стражник'];
+                });
+                gameLogic.games.set(roomId, gameState);
 
                 const result = gameLogic.createOutfitSwapRequest(roomId, 'player1', 'princess');
 
@@ -166,9 +173,12 @@ describe('CoopGameLogic', () => {
             });
 
             test('не должна разрешать смену одежды когда есть NPC', () => {
-                const gameState = gameLogic.games.get(roomId);
-                gameState.stats.princess.npcsPresent = ['Король', 'Стражник'];
-                gameState.stats.helper.npcsPresent = [];
+                let gameState = gameLogic.games.get(roomId);
+                gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                    draft.stats.princess.npcsPresent = ['Король', 'Стражник'];
+                    draft.stats.helper.npcsPresent = [];
+                });
+                gameLogic.games.set(roomId, gameState);
 
                 const canSwitch = gameLogic.canSwitchOutfits(gameState, 'princess');
                 expect(canSwitch).toBe(false);
@@ -255,15 +265,20 @@ describe('CoopGameLogic', () => {
             });
 
             test('должна добавлять кнопку смены одежды когда нет NPC', () => {
-                const gameState = gameLogic.games.get(roomId);
+                let gameState = gameLogic.games.get(roomId);
                 // Правильно устанавливаем отсутствие NPC для обоих персонажей
-                gameState.stats.princess.npcsPresent = [];
-                gameState.stats.helper.npcsPresent = [];
-                // Убеждаемся, что оба персонажа в одной локации, которая позволяет смену одежды
-                gameState.stats.princess.location = 'princess_chamber';
-                gameState.stats.helper.location = 'princess_chamber';
+                gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                    draft.stats.princess.npcsPresent = [];
+                    draft.stats.helper.npcsPresent = [];
+                    // Убеждаемся, что оба персонажа в одной локации, которая позволяет смену одежды
+                    draft.stats.princess.location = 'princess_chamber';
+                    draft.stats.helper.location = 'princess_chamber';
+                });
+                gameLogic.games.set(roomId, gameState);
                 const sceneData = CoopStoryData.getScene();
 
+                // Получаем обновленное состояние после изменений
+                gameState = gameLogic.games.get(roomId);
                 const choices = gameLogic.getChoicesForCharacter(gameState, 'princess', sceneData);
                 const outfitChoice = choices.find(c => c.id === 'request_outfit_swap');
 
@@ -303,9 +318,12 @@ describe('CoopGameLogic', () => {
         test('должна создавать выборы взаимодействия с NPC', () => {
             // Создаем новую игру для этого теста
             gameLogic.startGame(roomId, players);
-            const gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'throne_room';
-            gameState.stats.princess.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
+            let gameState = gameLogic.games.get(roomId);
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'throne_room';
+                draft.stats.princess.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
+            });
+            gameLogic.games.set(roomId, gameState);
 
             const choices = gameLogic.getNPCInteractionChoices(gameState, 'princess');
             
@@ -318,7 +336,10 @@ describe('CoopGameLogic', () => {
             // Создаем новую игру для этого теста
             gameLogic.startGame(roomId, players);
             let gameState = gameLogic.games.get(roomId);
-            gameState.stats.princess.location = 'throne_room';
+            gameState = gameLogic.immerStateManager.updateState(gameState, draft => {
+                draft.stats.princess.location = 'throne_room';
+            });
+            gameLogic.games.set(roomId, gameState);
             
             const result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
             gameState = gameLogic.games.get(roomId);
