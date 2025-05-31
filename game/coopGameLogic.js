@@ -152,6 +152,10 @@ class CoopGameLogic {
 
     // Проверить, можно ли переодеваться
     canSwitchOutfits(gameState, character) {
+        return this.validateOutfitChange(gameState, character);
+    }
+
+    validateOutfitChange(gameState, character) {
         const validators = [
             () => this.hasNoNPCs(gameState, character),
             () => this.locationAllowsOutfitChange(gameState, character),
@@ -185,70 +189,74 @@ class CoopGameLogic {
 
     // Получить выборы для персонажа
     getChoicesForCharacter(gameState, character, sceneData) {
-        let choices = [];
+        const choices = this.getSceneChoices(gameState, character, sceneData);
+        const specialChoices = this.getSpecialChoices(gameState, character);
         
-        // Основные выборы сцены (только для игрока, чей ход)
-        if (gameState.turnOrder === character) {
-            choices = sceneData.choices[character] || [];
-            choices = choices.filter(choice => {
-                return this.isChoiceAvailable(choice, gameState, character);
-            });
-        }
+        return [...choices, ...specialChoices];
+    }
 
-        // КНОПКА ПРЕДЛОЖЕНИЯ обмена одеждой доступна для ОБОИХ персонажей
-        // если они наедине и нет активного запроса
+    getSceneChoices(gameState, character, sceneData) {
+        if (gameState.turnOrder !== character) {
+            return [];
+        }
+        
+        const choices = sceneData.choices[character] || [];
+        return choices.filter(choice => this.isChoiceAvailable(choice, gameState, character));
+    }
+
+    getSpecialChoices(gameState, character) {
+        const choices = [];
+        
+        // Выбор обмена одеждой
         if (this.canSwitchOutfits(gameState, character) && !this.outfitRequests.has(gameState.roomId)) {
-            const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
-            choices.push({
-                id: 'request_outfit_swap',
-                text: '👗 Предложить поменяться одеждой',
-                description: `Предложить ${otherCharacter} поменяться нарядами`,
-                isOutfitRequest: true
-            });
+            choices.push(this.createOutfitSwapChoice(character));
         }
-
-        // Добавляем выборы перемещения для ОБОИХ игроков (индивидуальные)
-        const movementChoices = this.getMovementChoices(gameState, character);
-        choices.push(...movementChoices);
-
-        // Добавляем выборы взаимодействия с NPC (доступно всегда)
-        const npcChoices = this.getNPCInteractionChoices(gameState, character);
-        choices.push(...npcChoices);
-
+        
+        // Выборы перемещения
+        choices.push(...this.getMovementChoices(gameState, character));
+        
+        // Выборы взаимодействия с NPC
+        choices.push(...this.getNPCInteractionChoices(gameState, character));
+        
         return choices;
+    }
+
+    createOutfitSwapChoice(character) {
+        const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
+        return {
+            id: 'request_outfit_swap',
+            text: '👗 Предложить поменяться одеждой',
+            description: `Предложить ${otherCharacter} поменяться нарядами`,
+            isOutfitRequest: true
+        };
     }
 
     // Обработка обычных выборов (НЕ запросов одежды)
     makeChoice(roomId, playerId, choiceId, character) {
         try {
-            const gameState = this.games.get(roomId);
-            if (!gameState) {
-                return { success: false, message: "Игра не найдена" };
+            const validation = this.validateGameState(roomId);
+            if (!validation.valid) {
+                return { success: false, message: validation.error };
             }
 
-        // Проверяем, что игрок управляет правильным персонажем
-        const playerCharacter = gameState.players[character];
-        if (!playerCharacter || playerCharacter.id !== playerId) {
-            return { success: false, message: "Вы управляете другим персонажем" };
-        }
+            if (!this.validatePlayer(validation.gameState, playerId, character)) {
+                return { success: false, message: "Вы управляете другим персонажем" };
+            }
 
-        // Проверяем, что сейчас ход этого персонажа (для обычных выборов, но не для движения и NPC)
-        const isMovement = choiceId.startsWith('move_to_');
-        const isNPCInteraction = choiceId.startsWith('talk_to_');
-        if (!isMovement && !isNPCInteraction && choiceId !== 'request_outfit_swap' && gameState.turnOrder !== character) {
-            return { success: false, message: "Сейчас не ваш ход" };
-        }
+            if (!this.validateTurn(validation.gameState, character, choiceId)) {
+                return { success: false, message: "Сейчас не ваш ход" };
+            }
 
-        const result = this.processChoice(gameState, choiceId, character);
-        if (result.success) {
-            return {
-                success: true,
-                gameData: this.getGameData(roomId),
-                message: result.message
-            };
-        }
+            const result = this.processChoice(validation.gameState, choiceId, character);
+            if (result.success) {
+                return {
+                    success: true,
+                    gameData: this.getGameData(roomId),
+                    message: result.message
+                };
+            }
 
-        return result;
+            return result;
         } catch (error) {
             console.error('Ошибка при обработке выбора:', error);
             return { 
@@ -256,6 +264,30 @@ class CoopGameLogic {
                 message: `Ошибка при выполнении действия: ${error.message}` 
             };
         }
+    }
+
+    validateTurn(gameState, character, choiceId) {
+        const isMovement = choiceId.startsWith('move_to_');
+        const isNPCInteraction = choiceId.startsWith('talk_to_');
+        const isSpecialAction = choiceId === 'request_outfit_swap';
+        
+        // Специальные действия не требуют проверки хода
+        if (isMovement || isNPCInteraction || isSpecialAction) {
+            return true;
+        }
+        
+        return gameState.turnOrder === character;
+    }
+
+    // Общие методы валидации
+    validateGameState(roomId) {
+        const gameState = this.games.get(roomId);
+        return gameState ? { valid: true, gameState } : { valid: false, error: 'Игра не найдена' };
+    }
+
+    validatePlayer(gameState, playerId, character) {
+        const playerCharacter = gameState.players[character];
+        return playerCharacter && playerCharacter.id === playerId;
     }
 
     processChoice(gameState, choiceId, character) {
@@ -360,49 +392,60 @@ class CoopGameLogic {
 
         const sceneData = CoopStoryData.getScene(gameState.currentScene);
         
-        // Теперь локации индивидуальные для каждого персонажа
-        const princessLocationInfo = LocationData.getLocationInfo(gameState.stats.princess.location);
-        const helperLocationInfo = LocationData.getLocationInfo(gameState.stats.helper.location);
-        
-        const gameData = {
+        return {
             roomId: roomId,
             players: gameState.players,
-            scene: {
-                title: sceneData.title,
-                text: sceneData.text
-            },
-            choices: {
-                princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
-                helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
-            },
-            stats: JSON.parse(JSON.stringify(gameState.stats)), // Глубокая копия
+            scene: this.buildSceneData(sceneData),
+            choices: this.buildChoicesData(gameState, sceneData),
+            stats: JSON.parse(JSON.stringify(gameState.stats)),
             currentTurn: gameState.turnOrder,
             chapter: gameState.chapter,
-            // Индивидуальная информация о локациях
-            locations: {
-                princess: princessLocationInfo,
-                helper: helperLocationInfo
+            locations: this.buildLocationsData(gameState),
+            activeOutfitRequest: this.getActiveOutfitRequest(roomId),
+            npcDialogues: this.buildDialoguesData(gameState),
+            quests: this.buildQuestsData(gameState)
+        };
+    }
+
+    buildSceneData(sceneData) {
+        return {
+            title: sceneData.title,
+            text: sceneData.text
+        };
+    }
+
+    buildChoicesData(gameState, sceneData) {
+        return {
+            princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
+            helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
+        };
+    }
+
+    buildLocationsData(gameState) {
+        return {
+            princess: LocationData.getLocationInfo(gameState.stats.princess.location),
+            helper: LocationData.getLocationInfo(gameState.stats.helper.location)
+        };
+    }
+
+    buildDialoguesData(gameState) {
+        return {
+            princess: gameState.npcDialogues?.princess || null,
+            helper: gameState.npcDialogues?.helper || null
+        };
+    }
+
+    buildQuestsData(gameState) {
+        return {
+            princess: {
+                active: gameState.quests.princess.active,
+                completed: gameState.quests.princess.completed.length
             },
-            activeOutfitRequest: this.getActiveOutfitRequest(roomId), // Информация о запросе
-            // Индивидуальные диалоги для каждого персонажа
-            npcDialogues: {
-                princess: gameState.npcDialogues?.princess || null,
-                helper: gameState.npcDialogues?.helper || null
-            },
-            // Информация о квестах
-            quests: {
-                princess: {
-                    active: gameState.quests.princess.active,
-                    completed: gameState.quests.princess.completed.length
-                },
-                helper: {
-                    active: gameState.quests.helper.active,
-                    completed: gameState.quests.helper.completed.length
-                }
+            helper: {
+                active: gameState.quests.helper.active,
+                completed: gameState.quests.helper.completed.length
             }
         };
-
-        return gameData;
     }
 
     // Вспомогательные методы

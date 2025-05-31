@@ -237,62 +237,78 @@ class CoopGame {
     }
 
     updateCharacterChoices(character, choices) {
-	console.log(`🔍 DEBUG updateCharacterChoices for ${character}:`, {
-		choices: choices,
-		playerRole: this.playerRole,
-		isMyRole: this.playerRole === character,
-		gameDataChoices: this.gameData.choices,
-		outfitChoices: choices?.filter(c => c.isOutfitChange)
-	});
+        console.log(`🔍 DEBUG updateCharacterChoices for ${character}:`, {
+            choices: choices,
+            playerRole: this.playerRole,
+            isMyRole: this.playerRole === character,
+            gameDataChoices: this.gameData.choices,
+            outfitChoices: choices?.filter(c => c.isOutfitChange)
+        });
 
-	const choicesDiv = this.element.querySelector(`#${character}-choices`);
-	choicesDiv.innerHTML = '';
+        const choicesDiv = this.element.querySelector(`#${character}-choices`);
+        choicesDiv.innerHTML = '';
 
-	const isMyRole = this.playerRole === character;
-	const hasChoices = choices && choices.length > 0;
+        const isMyRole = this.playerRole === character;
+        const hasChoices = choices && choices.length > 0;
 
-	if (!isMyRole) {
-            if (hasChoices) {
-		// Показываем только действия смены одежды для "не моего" персонажа
-		const outfitChoices = choices.filter(choice => choice.isOutfitChange);
-		console.log(`🎭 DEBUG: Filtered outfit choices for ${character}:`, outfitChoices);
-		if (outfitChoices.length > 0) {
-                    const header = document.createElement('div');
-                    header.className = 'other-player-actions';
-                    header.textContent = '🔄 Можете предложить:';
-                    choicesDiv.appendChild(header);
-                    
-                    outfitChoices.forEach(choice => {
-			const button = this.createChoiceButton(choice, character);
-			choicesDiv.appendChild(button);
-                    });
-		}
-            }
-            
-            const waitingDiv = document.createElement('div');
-            waitingDiv.className = 'waiting-turn';
-            waitingDiv.textContent = 'Ход другого игрока...';
-            choicesDiv.appendChild(waitingDiv);
+        if (!isMyRole) {
+            this.renderOtherPlayerChoices(choicesDiv, choices, character, hasChoices);
             return;
-	}
+        }
 
-	// Это мой персонаж
-	if (!hasChoices) {
+        this.renderMyPlayerChoices(choicesDiv, choices, hasChoices);
+    }
+
+    renderOtherPlayerChoices(choicesDiv, choices, character, hasChoices) {
+        if (hasChoices) {
+            const outfitChoices = choices.filter(choice => choice.isOutfitChange);
+            console.log(`🎭 DEBUG: Filtered outfit choices for ${character}:`, outfitChoices);
+            
+            if (outfitChoices.length > 0) {
+                this.addChoicesHeader(choicesDiv, '🔄 Можете предложить:');
+                this.addChoiceButtons(choicesDiv, outfitChoices, character);
+            }
+        }
+        
+        this.addWaitingIndicator(choicesDiv, 'Ход другого игрока...');
+    }
+
+    renderMyPlayerChoices(choicesDiv, choices, hasChoices) {
+        if (!hasChoices) {
             choicesDiv.innerHTML = '<div class="waiting-turn">Ожидание развития сюжета...</div>';
             return;
-	}
+        }
 
-	// Индикатор хода
-	const turnIndicator = document.createElement('div');
-	turnIndicator.className = 'turn-indicator';
-	turnIndicator.textContent = '🎯 Ваш ход!';
-	choicesDiv.appendChild(turnIndicator);
+        this.addTurnIndicator(choicesDiv);
+        this.addChoiceButtons(choicesDiv, choices, null);
+    }
 
-	// Все доступные действия
-	choices.forEach(choice => {
+    addChoicesHeader(container, text) {
+        const header = document.createElement('div');
+        header.className = 'other-player-actions';
+        header.textContent = text;
+        container.appendChild(header);
+    }
+
+    addWaitingIndicator(container, text) {
+        const waitingDiv = document.createElement('div');
+        waitingDiv.className = 'waiting-turn';
+        waitingDiv.textContent = text;
+        container.appendChild(waitingDiv);
+    }
+
+    addTurnIndicator(container) {
+        const turnIndicator = document.createElement('div');
+        turnIndicator.className = 'turn-indicator';
+        turnIndicator.textContent = '🎯 Ваш ход!';
+        container.appendChild(turnIndicator);
+    }
+
+    addChoiceButtons(container, choices, character) {
+        choices.forEach(choice => {
             const button = this.createChoiceButton(choice, character);
-            choicesDiv.appendChild(button);
-	});
+            container.appendChild(button);
+        });
     }
 
     createChoiceButton(choice, character) {
