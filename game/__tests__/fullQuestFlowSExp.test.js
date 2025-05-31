@@ -15,8 +15,8 @@ describe('Полный цикл квестов с S-expression системой'
 
     describe('Квест принцессы через S-expression систему', () => {
         test('полный цикл квеста через S-expression систему', () => {
-            const gameState = gameLogic.games.get(roomId);
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             console.log('\n=== КВЕСТ ПРИНЦЕССЫ ЧЕРЕЗ S-EXPRESSION СИСТЕМУ ===');
             
@@ -113,8 +113,8 @@ describe('Полный цикл квестов с S-expression системой'
 
     describe('Квест помощницы через S-expression систему', () => {
         test('полный цикл квеста через S-expression систему', () => {
-            const gameState = gameLogic.games.get(roomId);
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             console.log('\n=== КВЕСТ ПОМОЩНИЦЫ ЧЕРЕЗ S-EXPRESSION СИСТЕМУ ===');
             
@@ -214,8 +214,8 @@ describe('Полный цикл квестов с S-expression системой'
 
     describe('Тест смены одежды и доступности квестов', () => {
         test('принцесса должна выполнить квесты в разных одеждах', () => {
-            const gameState = gameLogic.games.get(roomId);
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             console.log('\n=== ТЕСТ СМЕНЫ ОДЕЖДЫ И ДОСТУПНОСТИ КВЕСТОВ ===');
             
@@ -238,7 +238,7 @@ describe('Полный цикл квестов с S-expression системой'
             gameState.stats.helper.location = 'princess_chamber';
             
             // Проверяем возможность смены одежды
-            expect(gameLogic.canSwitchOutfits(gameState, 'princess')).toBe(true);
+            expect(gameLogic.outfitSystem.canSwitchOutfits(gameState, 'princess')).toBe(true);
             
             // Создаём и принимаем запрос на смену
             const swapRequest = gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
@@ -307,8 +307,8 @@ describe('Полный цикл квестов с S-expression системой'
 
     describe('Проверка ограничений и валидации', () => {
         test('квесты должны быть доступны только один раз', () => {
-            const gameState = gameLogic.games.get(roomId);
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             console.log('\n=== ТЕСТ ОГРАНИЧЕНИЙ ПОВТОРНОГО ВЫПОЛНЕНИЯ ===');
             
@@ -341,8 +341,8 @@ describe('Полный цикл квестов с S-expression системой'
         });
 
         test('проверка требований локаций и экипировки', () => {
-            const gameState = gameLogic.games.get(roomId);
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             console.log('\n=== ТЕСТ ТРЕБОВАНИЙ ЛОКАЦИЙ И ЭКИПИРОВКИ ===');
             

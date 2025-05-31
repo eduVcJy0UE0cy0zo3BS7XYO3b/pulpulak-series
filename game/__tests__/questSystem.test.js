@@ -15,11 +15,11 @@ describe('S-Expression Quest System', () => {
 
     // Helper function to set up quest conditions
     function setupQuestConditions(character = 'princess', location = 'throne_room', outfit = 'princess_dress', npc = 'royal_advisor') {
-        const gameState = gameLogic.games.get(roomId);
+        const gameState = gameLogic.lobbyLogic.getGameState(roomId);
         gameState.stats[character].outfit = outfit;
         gameState.stats[character].location = location;
         
-        const questIntegration = gameLogic.questIntegrations.get(roomId);
+        const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
         if (questIntegration) {
             questIntegration.questRunner.gameState.currentNPC = npc;
             questIntegration.questRunner.gameState.currentLocation = location;
@@ -31,13 +31,13 @@ describe('S-Expression Quest System', () => {
 
     describe('S-Expression Quest System Integration', () => {
         test('должен загружать квесты из .scm файлов', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             expect(questIntegration).toBeDefined();
             expect(questIntegration.questRunner).toBeDefined();
         });
 
         test('должен предоставлять API для работы с квестами', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Проверяем основные методы API
             expect(typeof questIntegration.checkQuestTriggers).toBe('function');
@@ -47,7 +47,7 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен обрабатывать взаимодействие с NPC', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const gameState = setupQuestConditions();
             
             const result = questIntegration.handleNPCInteraction('royal_advisor');
@@ -61,7 +61,7 @@ describe('S-Expression Quest System', () => {
 
     describe('Quest Management', () => {
         test('должен инициализировать пустые квесты', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             expect(gameState.quests).toBeDefined();
             expect(gameState.quests.princess.active).toBeNull();
             expect(gameState.quests.helper.active).toBeNull();
@@ -70,14 +70,14 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен проверять доступность квестов', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const availableQuests = questIntegration.checkQuestTriggers();
             
             expect(Array.isArray(availableQuests)).toBe(true);
         });
 
         test('должен возвращать статус текущего квеста', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const status = questIntegration.getCurrentQuestStatus();
             
             // По умолчанию должен быть null, так как нет активных квестов
@@ -85,7 +85,7 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен обрабатывать смену локации', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const results = questIntegration.handleLocationChange('throne_room');
             
             expect(Array.isArray(results)).toBe(true);
@@ -94,7 +94,7 @@ describe('S-Expression Quest System', () => {
 
     describe('Quest Integration with NPCs', () => {
         test('должен обрабатывать взаимодействие с NPC для квестов', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const gameState = setupQuestConditions();
             
             const result = questIntegration.handleNPCInteraction('royal_advisor');
@@ -106,7 +106,7 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен предлагать начать квест при взаимодействии с соответствующим NPC', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const gameState = setupQuestConditions('helper', 'kitchen', 'common_dress', 'cook');
             
             const result = questIntegration.handleNPCInteraction('cook');
@@ -115,7 +115,7 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен корректно обрабатывать стартовые условия квестов', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const availableQuests = questIntegration.checkQuestTriggers();
             
             // Система должна возвращать массив доступных квестов
@@ -125,7 +125,7 @@ describe('S-Expression Quest System', () => {
 
     describe('Game Data Integration', () => {
         test('должен включать информацию о квестах в gameData', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             const gameData = gameLogic.getGameData(roomId);
             
             expect(gameData.quests).toBeDefined();
@@ -134,7 +134,7 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен предоставлять интерфейс для работы с квестами', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Проверяем, что квестовая система интегрирована
             expect(questIntegration).toBeDefined();
@@ -144,7 +144,7 @@ describe('S-Expression Quest System', () => {
 
     describe('S-Expression Quest Flow', () => {
         test('должен обрабатывать изменения шагов квеста', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const result = questIntegration.processQuestStep();
             
             // По умолчанию должен возвращать null, так как нет активных квестов
@@ -152,14 +152,14 @@ describe('S-Expression Quest System', () => {
         });
 
         test('должен проверять доступность квестов для текущего персонажа', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             const availableQuests = questIntegration.checkQuestTriggers();
             
             expect(Array.isArray(availableQuests)).toBe(true);
         });
 
         test('должен корректно работать с системой квестов через S-expressions', () => {
-            const questIntegration = gameLogic.questIntegrations.get(roomId);
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Проверяем, что все необходимые методы доступны
             expect(typeof questIntegration.startQuest).toBe('function');

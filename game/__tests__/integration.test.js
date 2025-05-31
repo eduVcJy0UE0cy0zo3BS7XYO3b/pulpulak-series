@@ -93,7 +93,7 @@ describe('Game Integration Tests', () => {
             gameLogic.startGame(roomId, players);
             
             // Мокаем переход в тронный зал для обеих персонажей
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             gameState.stats.princess.npcsPresent = gameLogic.getNPCsForLocation('throne_room');
             gameState.stats.helper.location = 'throne_room';
@@ -135,7 +135,7 @@ describe('Game Integration Tests', () => {
     describe('Сохранение состояния между действиями', () => {
         test('должен сохранять эффекты выборов', () => {
             gameLogic.startGame(roomId, players);
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
 
             // Имитируем выбор с эффектом awareness
             gameState.stats.princess.awareness = 5;

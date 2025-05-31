@@ -17,20 +17,20 @@ describe('Independent Dialogues System', () => {
     });
 
     test('должен позволить одновременные диалоги для разных игроков', () => {
-        const gameState = gameLogic.games.get(roomId);
+        const gameState = gameLogic.lobbyLogic.getGameState(roomId);
         
         // Размещаем обоих персонажей в разных локациях с NPC
         gameState.stats.princess.location = 'throne_room'; // королевский советник
         gameState.stats.helper.location = 'kitchen'; // повар
         
         // Княжна начинает диалог с советником
-        let result1 = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        let result1 = gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess');
         expect(result1.success).toBe(true);
         expect(gameState.npcDialogues.princess).toBeDefined();
         expect(gameState.npcDialogues.princess.npcName).toBe('Королевский советник Эдвард');
         
         // Помощница начинает диалог с поваром (одновременно!)
-        let result2 = gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
+        let result2 = gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'helper');
         expect(result2.success).toBe(true);
         expect(gameState.npcDialogues.helper).toBeDefined();
         expect(gameState.npcDialogues.helper.npcName).toBe('Повариха Марта');
@@ -45,7 +45,7 @@ describe('Independent Dialogues System', () => {
     });
 
     test('должен обрабатывать выборы независимо для каждого игрока', () => {
-        const gameState = gameLogic.games.get(roomId);
+        const gameState = gameLogic.lobbyLogic.getGameState(roomId);
         
         // Размещаем обоих персонажей
         gameState.stats.princess.location = 'throne_room';
@@ -53,8 +53,8 @@ describe('Independent Dialogues System', () => {
         gameState.stats.helper.outfit = 'common_dress'; // чтобы повар был дружелюбен
         
         // Начинаем диалоги
-        gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
-        gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'helper');
         
         // Получаем выборы для каждого персонажа
         const princessChoice = gameState.npcDialogues.princess.choices[0];
@@ -75,15 +75,15 @@ describe('Independent Dialogues System', () => {
     });
 
     test('должен позволить закрывать диалоги независимо', () => {
-        const gameState = gameLogic.games.get(roomId);
+        const gameState = gameLogic.lobbyLogic.getGameState(roomId);
         
         // Размещаем обоих персонажей
         gameState.stats.princess.location = 'throne_room';
         gameState.stats.helper.location = 'kitchen';
         
         // Начинаем диалоги
-        gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
-        gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'helper');
         
         // Оба диалога активны
         expect(gameState.npcDialogues.princess).toBeDefined();
@@ -107,11 +107,11 @@ describe('Independent Dialogues System', () => {
     });
 
     test('игрок не может закрыть диалог другого игрока', () => {
-        const gameState = gameLogic.games.get(roomId);
+        const gameState = gameLogic.lobbyLogic.getGameState(roomId);
         
         // Только княжна начинает диалог
         gameState.stats.princess.location = 'throne_room';
-        gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess');
         
         expect(gameState.npcDialogues.princess).toBeDefined();
         expect(gameState.npcDialogues.helper).toBeNull();
@@ -126,15 +126,15 @@ describe('Independent Dialogues System', () => {
     });
 
     test('должен передавать правильные данные диалогов клиенту', () => {
-        const gameState = gameLogic.games.get(roomId);
+        const gameState = gameLogic.lobbyLogic.getGameState(roomId);
         
         // Размещаем обоих персонажей
         gameState.stats.princess.location = 'throne_room';
         gameState.stats.helper.location = 'kitchen';
         
         // Начинаем диалоги
-        gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
-        gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+        gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'helper');
         
         // Получаем данные игры
         const gameData = gameLogic.getGameData(roomId);

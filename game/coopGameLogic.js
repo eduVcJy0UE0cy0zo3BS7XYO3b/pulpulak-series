@@ -1,259 +1,71 @@
 const CoopStoryData = require('./data/coopStoryDataSCM');
 const LocationData = require('./data/locationDataSCM');
 const NPCData = require('./data/npcDataSCM');
-const QuestIntegration = require('./questSystem/questIntegration');
 const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./constants');
-const GameStateManager = require('./gameStateManager');
 
-// Новые модули
+const LobbyLogic = require('./modules/lobbyLogic');
 const OutfitSystem = require('./modules/outfitSystem');
 const SceneHandler = require('./modules/sceneHandler');
+const ChoiceHandler = require('./modules/choiceHandler');
 
 class CoopGameLogic {
     constructor() {
-        this.games = new Map(); // roomId -> gameState
-        this.outfitRequests = new Map(); // roomId -> activeRequest
-        this.questIntegrations = new Map(); // roomId -> questIntegration
-        this.stateManager = new GameStateManager();
-        
-        // Инициализируем модули
-        this.outfitSystem = new OutfitSystem();
         this.sceneHandler = new SceneHandler(LocationData, NPCData);
+        this.lobbyLogic = new LobbyLogic(this.sceneHandler.getNPCsForLocation.bind(this.sceneHandler));
+        this.outfitSystem = new OutfitSystem();
+        this.choiceHandler = new ChoiceHandler(this.sceneHandler);
     }
 
-    // Запуск игры
     startGame(roomId, players) {
-        try {
-            if (!roomId || typeof roomId !== 'string') {
-                throw new Error('Неверный ID комнаты');
-            }
-            if (!players || !players.princess || !players.helper) {
-                throw new Error('Недостаточно игроков для начала игры');
-            }
-
-            const gameState = this.stateManager.createInitialState(roomId, players);
-
-            this.games.set(roomId, gameState);
-            
-            // Инициализируем систему квестов
-            this.questIntegrations.set(roomId, new QuestIntegration(this));
-            
-            // Инициализируем NPC для начальных локаций
-            try {
-                gameState.stats.princess.npcsPresent = this.getNPCsForLocation(gameState.stats.princess.location, gameState, 'princess');
-                gameState.stats.helper.npcsPresent = this.getNPCsForLocation(gameState.stats.helper.location, gameState, 'helper');
-            } catch (npcError) {
-                console.error('Ошибка при инициализации NPC:', npcError);
-                // Продолжаем с пустыми массивами NPC
-                gameState.stats.princess.npcsPresent = [];
-                gameState.stats.helper.npcsPresent = [];
-            }
-            
-            return this.getGameData(roomId);
-        } catch (error) {
-            console.error('Ошибка при запуске игры:', error);
-            throw new Error(`Не удалось запустить игру: ${error.message}`);
-        }
+        const gameState = this.lobbyLogic.startGame(roomId, players);
+        return this.getGameData(roomId);
     }
 
-    // Создать запрос на обмен одеждой
     createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter) {
-        const gameState = this.games.get(roomId);
-        if (!gameState) {
-            return { success: false, message: "Игра не найдена" };
-        }
-
-        // Проверяем, можно ли переодеваться (нет посторонних)
-        if (!this.canSwitchOutfits(gameState, fromCharacter)) {
-            return { 
-                success: false, 
-                message: "Нельзя переодеваться при посторонних!" 
-            };
-        }
-
-        // Проверяем, нет ли уже активного запроса
-        if (this.outfitRequests.has(roomId)) {
-            return { 
-                success: false, 
-                message: "Уже есть активный запрос на обмен одеждой" 
-            };
-        }
-
-        const targetCharacter = fromCharacter === 'princess' ? 'helper' : 'princess';
-        const targetPlayer = gameState.players[targetCharacter];
-
-        if (!targetPlayer) {
-            return { success: false, message: "Второй игрок не найден" };
-        }
-
-        // Создаем запрос
-        const request = {
-            id: this.generateRequestId(),
-            roomId: roomId,
-            fromPlayerId: fromPlayerId,
-            fromCharacter: fromCharacter,
-            targetPlayerId: targetPlayer.id,
-            targetCharacter: targetCharacter,
-            timestamp: Date.now()
-        };
-
-        this.outfitRequests.set(roomId, request);
-
-        return { 
-            success: true, 
-            request: request,
-            message: `${this.getCharacterName(fromCharacter)} предлагает поменяться одеждой`
-        };
+        const gameState = this.lobbyLogic.getGameState(roomId);
+        return this.outfitSystem.createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter, gameState);
     }
 
-    // Ответить на запрос обмена одеждой
     respondToOutfitSwapRequest(roomId, playerId, accepted) {
-        const request = this.outfitRequests.get(roomId);
-        if (!request) {
-            return { success: false, message: "Запрос не найден" };
-        }
-
-        if (request.targetPlayerId !== playerId) {
-            return { success: false, message: "Этот запрос не для вас" };
-        }
-
-        // Удаляем запрос
-        this.outfitRequests.delete(roomId);
-
-        if (!accepted) {
-            return { 
-                success: true, 
-                declined: true,
-                message: `${this.getCharacterName(request.targetCharacter)} отклонила предложение обмена одеждой`
-            };
-        }
-
-        // Выполняем обмен одеждой
-        const gameState = this.games.get(roomId);
-        if (!gameState) {
-            return { success: false, message: "Игра не найдена" };
-        }
-
-        if (!this.canSwitchOutfits(gameState, request.fromCharacter)) {
-            return { 
-                success: false, 
-                message: "Обстановка изменилась - больше нельзя переодеваться!" 
-            };
-        }
-
-        // Меняем наряды местами
-        const { princess, helper } = gameState.stats;
-        const tempOutfit = princess.outfit;
-        princess.outfit = helper.outfit;
-        helper.outfit = tempOutfit;
-
-
-        return {
-            success: true,
-            accepted: true,
-            message: `Персонажи поменялись одеждой! Княжна теперь в: ${this.getOutfitName(princess.outfit)}, помощница в: ${this.getOutfitName(helper.outfit)}`
-        };
+        const gameState = this.lobbyLogic.getGameState(roomId);
+        return this.outfitSystem.respondToOutfitSwapRequest(roomId, playerId, accepted, gameState);
     }
 
-    // Проверить, можно ли переодеваться
-    canSwitchOutfits(gameState, character) {
-        const validators = [
-            () => this.hasNoNPCs(gameState, character),
-            () => this.locationAllowsOutfitChange(gameState, character),
-            () => this.playersInSameLocation(gameState, character),
-            () => this.bothPlayersHaveNoNPCs(gameState, character)
-        ];
-        
-        return validators.every(validate => validate());
-    }
-
-    hasNoNPCs(gameState, character) {
-        const characterStats = gameState.stats[character];
-        return !characterStats.npcsPresent || characterStats.npcsPresent.length === 0;
-    }
-
-    locationAllowsOutfitChange(gameState, character) {
-        const characterStats = gameState.stats[character];
-        return LocationData.canChangeOutfit(characterStats.location);
-    }
-
-    playersInSameLocation(gameState, character) {
-        const characterStats = gameState.stats[character];
-        const otherCharacter = character === 'princess' ? 'helper' : 'princess';
-        return characterStats.location === gameState.stats[otherCharacter].location;
-    }
-
-    bothPlayersHaveNoNPCs(gameState, character) {
-        const otherCharacter = character === 'princess' ? 'helper' : 'princess';
-        return this.hasNoNPCs(gameState, otherCharacter);
-    }
-
-    // Получить выборы для персонажа
-    getChoicesForCharacter(gameState, character, sceneData) {
-        let choices = [];
-        
-        // Основные выборы сцены (только для игрока, чей ход)
-        if (gameState.turnOrder === character) {
-            choices = sceneData.choices[character] || [];
-            choices = choices.filter(choice => {
-                return this.isChoiceAvailable(choice, gameState, character);
-            });
-        }
-
-        // КНОПКА ПРЕДЛОЖЕНИЯ обмена одеждой доступна для ОБОИХ персонажей
-        // если они наедине и нет активного запроса
-        if (this.canSwitchOutfits(gameState, character) && !this.outfitRequests.has(gameState.roomId)) {
-            const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
-            choices.push({
-                id: 'request_outfit_swap',
-                text: '👗 Предложить поменяться одеждой',
-                description: `Предложить ${otherCharacter} поменяться нарядами`,
-                isOutfitRequest: true
-            });
-        }
-
-        // Добавляем выборы перемещения для ОБОИХ игроков (индивидуальные)
-        const movementChoices = this.getMovementChoices(gameState, character);
-        choices.push(...movementChoices);
-
-        // Добавляем выборы взаимодействия с NPC (доступно всегда)
-        const npcChoices = this.getNPCInteractionChoices(gameState, character);
-        choices.push(...npcChoices);
-
-        return choices;
-    }
-
-    // Обработка обычных выборов (НЕ запросов одежды)
     makeChoice(roomId, playerId, choiceId, character) {
         try {
-            const gameState = this.games.get(roomId);
+            const gameState = this.lobbyLogic.getGameState(roomId);
             if (!gameState) {
                 return { success: false, message: "Игра не найдена" };
             }
 
-        // Проверяем, что игрок управляет правильным персонажем
-        const playerCharacter = gameState.players[character];
-        if (!playerCharacter || playerCharacter.id !== playerId) {
-            return { success: false, message: "Вы управляете другим персонажем" };
-        }
+            const playerCharacter = gameState.players[character];
+            if (!playerCharacter || playerCharacter.id !== playerId) {
+                return { success: false, message: "Вы управляете другим персонажем" };
+            }
 
-        // Проверяем, что сейчас ход этого персонажа (для обычных выборов, но не для движения и NPC)
-        const isMovement = choiceId.startsWith('move_to_');
-        const isNPCInteraction = choiceId.startsWith('talk_to_');
-        if (!isMovement && !isNPCInteraction && choiceId !== 'request_outfit_swap' && gameState.turnOrder !== character) {
-            return { success: false, message: "Сейчас не ваш ход" };
-        }
+            const isMovement = choiceId.startsWith('move_to_');
+            const isNPCInteraction = choiceId.startsWith('talk_to_');
+            if (!isMovement && !isNPCInteraction && choiceId !== 'request_outfit_swap' && gameState.turnOrder !== character) {
+                return { success: false, message: "Сейчас не ваш ход" };
+            }
 
-        const result = this.processChoice(gameState, choiceId, character);
-        if (result.success) {
-            return {
-                success: true,
-                gameData: this.getGameData(roomId),
-                message: result.message
-            };
-        }
+            const result = this.choiceHandler.makeChoice(gameState, choiceId, character);
+            if (result.success) {
+                if (choiceId.startsWith('move_to_')) {
+                    this.outfitSystem.cancelOutfitRequest(roomId);
+                } else if (!isMovement && !isNPCInteraction && choiceId !== 'request_outfit_swap') {
+                    this.lobbyLogic.switchTurn(gameState);
+                    this.outfitSystem.cancelOutfitRequest(roomId);
+                }
 
-        return result;
+                return {
+                    success: true,
+                    gameData: this.getGameData(roomId),
+                    message: result.message
+                };
+            }
+
+            return result;
         } catch (error) {
             console.error('Ошибка при обработке выбора:', error);
             return { 
@@ -263,103 +75,54 @@ class CoopGameLogic {
         }
     }
 
-    processChoice(gameState, choiceId, character) {
-        // Запросы одежды обрабатываются отдельно
-        if (choiceId === 'request_outfit_swap') {
-            return { 
-                success: false, 
-                message: "Используйте отдельный обработчик для запросов обмена одеждой" 
-            };
+    processNPCDialogueChoice(roomId, playerId, choiceId, character) {
+        const gameState = this.lobbyLogic.getGameState(roomId);
+        if (!gameState) {
+            return { success: false, message: "Игра не найдена" };
         }
 
-        // Проверка на перемещение
-        if (choiceId.startsWith('move_to_')) {
-            const targetLocation = choiceId.replace('move_to_', '');
-            return this.processMovement(gameState, targetLocation, character);
+        const playerCharacter = gameState.players[character];
+        if (!playerCharacter || playerCharacter.id !== playerId) {
+            return { success: false, message: "Вы управляете другим персонажем" };
         }
 
-        // Проверка на взаимодействие с NPC
-        if (choiceId.startsWith('talk_to_')) {
-            const npcId = choiceId.replace('talk_to_', '');
-            return this.processNPCInteraction(gameState, npcId, character);
-        }
-
-        // Обработка обычных выборов
-        const sceneData = CoopStoryData.getScene(gameState.currentScene);
-        const choice = sceneData.choices[character]?.find(c => c.id === choiceId);
+        const questIntegration = this.lobbyLogic.getQuestIntegration(roomId);
+        const result = this.choiceHandler.processNPCDialogueChoice(gameState, choiceId, character, questIntegration);
         
-        if (!choice) {
-            return { success: false, message: "Неверный выбор" };
+        if (result.success && !result.hasFollowUp) {
+            this.lobbyLogic.switchTurn(gameState);
         }
 
-        // Применяем эффекты выбора
-        if (choice.effects) {
-            this.applyEffects(gameState, choice.effects, character);
+        return result;
+    }
+
+    closeNPCDialogue(roomId, playerId) {
+        const gameState = this.lobbyLogic.getGameState(roomId);
+        if (!gameState) {
+            return { success: false, message: "Игра не найдена" };
         }
 
-        // Проверяем, меняется ли сцена
-        if (choice.nextScene) {
-            gameState.currentScene = choice.nextScene;
-            
-            // При смене сцены отменяем активные запросы
-            this.cancelOutfitRequest(gameState.roomId);
-            
-            // При смене сцены обновляем локацию если она указана
-            // Больше не нужно, так как локации индивидуальные
+        let character = null;
+        for (const [char, player] of Object.entries(gameState.players)) {
+            if (player && player.id === playerId) {
+                character = char;
+                break;
+            }
         }
 
-        // Меняем очередь хода
-        this.switchTurn(gameState);
-
-        return { 
-            success: true, 
-            message: choice.resultText || "Выбор сделан"
-        };
-    }
-
-    // Получить активный запрос для комнаты
-    getActiveOutfitRequest(roomId) {
-        return this.outfitRequests.get(roomId) || null;
-    }
-
-    // Отменить запрос 
-    cancelOutfitRequest(roomId) {
-        this.outfitRequests.delete(roomId);
-    }
-
-    // Применить эффекты выбора
-    applyEffects(gameState, effects, character) {
-        if (effects.outfit) {
-            gameState.stats[character].outfit = effects.outfit;
+        if (!character) {
+            return { success: false, message: "Игрок не найден" };
         }
-        if (effects.location) {
-            gameState.stats[character].location = effects.location;
-            gameState.stats[character].npcsPresent = this.getNPCsForLocation(effects.location, gameState, character);
-        }
-        if (effects.awareness) {
-            gameState.stats[character].awareness += effects.awareness;
-        }
+
+        return this.choiceHandler.closeNPCDialogue(gameState, character);
     }
 
-    // Проверить доступность выбора
-    isChoiceAvailable(choice, gameState, character) {
-        // Базовая проверка - можно расширить
-        return true;
-    }
-
-    // Сменить очередь хода
-    switchTurn(gameState) {
-        gameState.turnOrder = gameState.turnOrder === 'princess' ? 'helper' : 'princess';
-    }
-
-    // Получить данные игры
     getGameData(roomId) {
-        const gameState = this.games.get(roomId);
+        const gameState = this.lobbyLogic.getGameState(roomId);
         if (!gameState) return null;
 
         const sceneData = CoopStoryData.getScene(gameState.currentScene);
         
-        // Теперь локации индивидуальные для каждого персонажа
         const princessLocationInfo = LocationData.getLocationInfo(gameState.stats.princess.location);
         const helperLocationInfo = LocationData.getLocationInfo(gameState.stats.helper.location);
         
@@ -371,24 +134,21 @@ class CoopGameLogic {
                 text: sceneData.text
             },
             choices: {
-                princess: this.getChoicesForCharacter(gameState, 'princess', sceneData),
-                helper: this.getChoicesForCharacter(gameState, 'helper', sceneData)
+                princess: this.choiceHandler.getChoicesForCharacter(gameState, 'princess', sceneData, this.outfitSystem),
+                helper: this.choiceHandler.getChoicesForCharacter(gameState, 'helper', sceneData, this.outfitSystem)
             },
-            stats: JSON.parse(JSON.stringify(gameState.stats)), // Глубокая копия
+            stats: JSON.parse(JSON.stringify(gameState.stats)),
             currentTurn: gameState.turnOrder,
             chapter: gameState.chapter,
-            // Индивидуальная информация о локациях
             locations: {
                 princess: princessLocationInfo,
                 helper: helperLocationInfo
             },
-            activeOutfitRequest: this.getActiveOutfitRequest(roomId), // Информация о запросе
-            // Индивидуальные диалоги для каждого персонажа
+            activeOutfitRequest: this.outfitSystem.getActiveOutfitRequest(roomId),
             npcDialogues: {
                 princess: gameState.npcDialogues?.princess || null,
                 helper: gameState.npcDialogues?.helper || null
             },
-            // Информация о квестах
             quests: {
                 princess: {
                     active: gameState.quests.princess.active,
@@ -404,9 +164,21 @@ class CoopGameLogic {
         return gameData;
     }
 
-    // Вспомогательные методы
+    getActiveOutfitRequest(roomId) {
+        return this.outfitSystem.getActiveOutfitRequest(roomId);
+    }
+
+    cancelOutfitRequest(roomId) {
+        this.outfitSystem.cancelOutfitRequest(roomId);
+    }
+
+    removeGame(roomId) {
+        this.lobbyLogic.removeGame(roomId);
+        this.outfitSystem.cancelOutfitRequest(roomId);
+    }
+
     generateRequestId() {
-        return Math.random().toString(36).substring(2, 15);
+        return this.outfitSystem.generateRequestId();
     }
 
     getCharacterName(character) {
@@ -419,290 +191,6 @@ class CoopGameLogic {
 
     getNPCsForLocation(location, gameState = null, character = null) {
         return this.sceneHandler.getNPCsForLocation(location, gameState, character);
-    }
-
-    getMovementChoices(gameState, character) {
-        const currentLocation = gameState.stats[character].location;
-        const locationInfo = LocationData.getLocationInfo(currentLocation);
-        
-        if (!locationInfo) return [];
-        
-        const choices = [];
-        
-        // Добавляем кнопки для перехода в соседние локации
-        locationInfo.connections.forEach(connection => {
-            choices.push({
-                id: `move_to_${connection.id}`,
-                text: `${connection.icon} Перейти: ${connection.name}`,
-                description: `Отправиться в ${connection.name}`,
-                isMovement: true,
-                targetLocation: connection.id
-            });
-        });
-        
-        return choices;
-    }
-
-    processMovement(gameState, targetLocation, character) {
-        const characterStats = gameState.stats[character];
-        
-        // Проверяем, что целевая локация доступна из текущей
-        const currentConnections = LocationData.getConnections(characterStats.location);
-        if (!currentConnections.includes(targetLocation)) {
-            return { 
-                success: false, 
-                message: "Вы не можете попасть туда отсюда" 
-            };
-        }
-
-        // Проверяем, что локация существует
-        const locationInfo = LocationData.getLocation(targetLocation);
-        if (!locationInfo) {
-            return { 
-                success: false, 
-                message: "Неизвестная локация" 
-            };
-        }
-
-        // Отменяем активные запросы при перемещении любого персонажа
-        if (this.outfitRequests.has(gameState.roomId)) {
-            this.cancelOutfitRequest(gameState.roomId);
-        }
-
-        // Перемещаем конкретного персонажа
-        characterStats.location = targetLocation;
-        
-        // Обновляем NPC для новой локации этого персонажа
-        characterStats.npcsPresent = this.getNPCsForLocation(targetLocation, gameState, character);
-
-        // НЕ меняем очередь хода при перемещении
-        // Это позволяет игрокам свободно перемещаться
-
-        return { 
-            success: true, 
-            message: `${character === 'princess' ? 'Княжна' : 'Помощница'} переместилась в ${locationInfo.name}`
-        };
-    }
-
-    removeGame(roomId) {
-        this.games.delete(roomId);
-        this.outfitRequests.delete(roomId);
-        this.questIntegrations.delete(roomId);
-    }
-
-    // Получить выборы взаимодействия с NPC
-    getNPCInteractionChoices(gameState, character) {
-        const choices = [];
-        const characterLocation = gameState.stats[character].location;
-        const npcs = NPCData.getNPCsForLocation(characterLocation, gameState, character);
-        
-        npcs.forEach(npc => {
-            choices.push({
-                id: `talk_to_${npc.id}`,
-                text: `💬 Поговорить с ${npc.name}`,
-                description: npc.description,
-                isNPCInteraction: true,
-                npcId: npc.id
-            });
-        });
-        
-        return choices;
-    }
-
-    // Обработка взаимодействия с NPC
-    processNPCInteraction(gameState, npcId, character) {
-        try {
-            const npc = NPCData.getNPC(npcId);
-            if (!npc) {
-                return { success: false, message: "NPC не найден" };
-            }
-
-        // Получаем наряд персонажа
-        const outfit = gameState.stats[character].outfit;
-        
-        // Получаем память NPC для этого персонажа
-        if (!gameState.npcMemory[character]) {
-            gameState.npcMemory[character] = {};
-        }
-        if (!gameState.npcMemory[character][npcId]) {
-            gameState.npcMemory[character][npcId] = {};
-        }
-        const npcMemory = gameState.npcMemory[character][npcId];
-        
-        // Получаем диалог в зависимости от наряда, памяти, локации и состояния квеста
-        const currentLocation = gameState.stats[character].location;
-        const questState = gameState.quests[character];
-        const globalQuestMemory = gameState.globalQuestMemory;
-        const dialogue = NPCData.getNPCDialogue(npcId, outfit, npcMemory, currentLocation, questState, globalQuestMemory, gameState, character);
-        if (!dialogue) {
-            return { success: false, message: "Диалог не найден" };
-        }
-
-        // Сохраняем информацию о диалоге для конкретного персонажа
-        gameState.npcDialogues[character] = {
-            npcId: npcId,
-            npcName: npc.name,
-            greeting: dialogue.greeting,
-            choices: dialogue.choices,
-            attitude: NPCData.getNPCAttitude(npcId, outfit),
-            activeCharacter: character, // Кто ведет диалог
-            isFollowUp: false // Флаг для дополнительных выборов
-        };
-
-        return { 
-            success: true, 
-            showDialogue: true,
-            message: `Начат диалог с ${npc.name}`
-        };
-        } catch (error) {
-            console.error('Ошибка при взаимодействии с NPC:', error);
-            return { 
-                success: false, 
-                message: `Не удалось начать диалог: ${error.message}` 
-            };
-        }
-    }
-
-    // Обработка выбора в диалоге с NPC
-    processNPCDialogueChoice(roomId, playerId, choiceId, character) {
-        const gameState = this.games.get(roomId);
-        if (!gameState) {
-            return { success: false, message: "Игра не найдена" };
-        }
-
-        // Проверяем, что игрок управляет правильным персонажем
-        const playerCharacter = gameState.players[character];
-        if (!playerCharacter || playerCharacter.id !== playerId) {
-            return { success: false, message: "Вы управляете другим персонажем" };
-        }
-
-        // Проверяем, что есть активный диалог для данного персонажа
-        if (!gameState.npcDialogues[character]) {
-            return { success: false, message: "Нет активного диалога" };
-        }
-
-        const npcId = gameState.npcDialogues[character].npcId;
-        const outfit = gameState.stats[character].outfit;
-
-        // Получаем память NPC для этого персонажа
-        if (!gameState.npcMemory[character]) {
-            gameState.npcMemory[character] = {};
-        }
-        if (!gameState.npcMemory[character][npcId]) {
-            gameState.npcMemory[character][npcId] = {};
-        }
-
-        // Обрабатываем выбор через NPCData
-        const isFollowUp = gameState.npcDialogues[character].isFollowUp || false;
-        const currentChoices = isFollowUp ? gameState.npcDialogues[character].choices : [];
-        
-        const result = NPCData.processDialogueChoice(
-            npcId, 
-            choiceId, 
-            outfit, 
-            gameState.npcMemory[character][npcId],
-            isFollowUp,
-            currentChoices,
-            gameState.stats[character].location,
-            gameState,
-            character
-        );
-        if (!result) {
-            return { success: false, message: "Неверный выбор" };
-        }
-
-        // Обновляем память NPC
-        gameState.npcMemory[character][npcId] = result.updatedMemory;
-
-        // Применяем эффекты выбора
-        if (result.effects) {
-            if (result.effects.item) {
-                gameState.stats[character].inventory.push(result.effects.item);
-            }
-            if (result.effects.info) {
-                gameState.stats[character][result.effects.info] = true;
-            }
-        }
-
-        // Обрабатываем квестовые действия
-        this.processQuestAction(gameState, character, choiceId, result);
-
-        // Сохраняем attitude до очистки диалога
-        const attitude = gameState.npcDialogues[character]?.attitude;
-
-        // Если есть дополнительные выборы, показываем их
-        if (result.next_choices && result.next_choices.length > 0) {
-            gameState.npcDialogues[character].choices = result.next_choices;
-            gameState.npcDialogues[character].greeting = result.response;
-            gameState.npcDialogues[character].isFollowUp = true;
-
-            return { 
-                success: true, 
-                message: result.response,
-                type: attitude === 'hostile' ? 'warning' : 'success',
-                hasFollowUp: true
-            };
-        } else {
-            // Очищаем диалог для данного персонажа
-            gameState.npcDialogues[character] = null;
-
-            // Меняем очередь хода
-            this.switchTurn(gameState);
-
-            return { 
-                success: true, 
-                message: result.response,
-                type: attitude === 'hostile' ? 'warning' : 'success'
-            };
-        }
-    }
-
-    // Закрытие диалога с NPC
-    closeNPCDialogue(roomId, playerId) {
-        const gameState = this.games.get(roomId);
-        if (!gameState) {
-            return { success: false, message: "Игра не найдена" };
-        }
-
-        // Находим персонажа, который принадлежит данному игроку
-        let character = null;
-        for (const [char, player] of Object.entries(gameState.players)) {
-            if (player && player.id === playerId) {
-                character = char;
-                break;
-            }
-        }
-
-        if (!character) {
-            return { success: false, message: "Игрок не найден" };
-        }
-
-        // Проверяем, что есть активный диалог для данного персонажа
-        if (!gameState.npcDialogues[character]) {
-            return { success: false, message: "Нет активного диалога" };
-        }
-
-        // Закрываем диалог для данного персонажа
-        gameState.npcDialogues[character] = null;
-
-        return { 
-            success: true, 
-            message: "Диалог закрыт"
-        };
-    }
-
-    // Обработка квестового действия
-    processQuestAction(gameState, character, choiceId, dialogueResult) {
-        const questIntegration = this.questIntegrations.get(gameState.roomId);
-        if (!questIntegration) return;
-        
-        // Проверяем квестовые действия в диалоге
-        const choice = dialogueResult.originalChoice;
-        
-        if (choice && choice.quest_action) {
-            // Обрабатываем квестовые действия через систему квестов
-            questIntegration.processQuestAction(gameState, character, choice.quest_action, this);
-        }
     }
 }
 

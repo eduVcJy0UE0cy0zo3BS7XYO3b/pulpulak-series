@@ -16,7 +16,7 @@ describe('Branching Dialogue System', () => {
 
     describe('Memory System', () => {
         test('должен инициализировать пустую память для NPC', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             
             expect(gameState.npcMemory).toBeDefined();
             expect(gameState.npcMemory.princess).toEqual({});
@@ -24,11 +24,12 @@ describe('Branching Dialogue System', () => {
         });
 
         test('должен показывать разные диалоги при первой встрече и возвращении', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Первая встреча с советником в княжеском платье
-            let result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            let result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             expect(result.success).toBe(true);
             
             const firstMeetingGreeting = gameState.npcDialogues.princess.greeting;
@@ -41,7 +42,7 @@ describe('Branching Dialogue System', () => {
             expect(gameState.npcMemory.princess.royal_advisor.noble.kingdom_talked).toBe(true);
             
             // Второе взаимодействие - должен показать диалог возвращения
-            result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             expect(result.success).toBe(true);
             
             const returnGreeting = gameState.npcDialogues.princess.greeting;
@@ -50,18 +51,19 @@ describe('Branching Dialogue System', () => {
         });
 
         test('должен помнить персонажа по наряду', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'kitchen';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Первая встреча в княжеском платье
-            gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             gameLogic.processNPCDialogueChoice(roomId, 'alice', 'demand_food', 'princess');
             
             // Меняем одежду на простую
             gameState.stats.princess.outfit = 'common_dress';
             
             // Взаимодействие в простом платье - должен показать диалог для простолюдина
-            let result = gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            let result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess.greeting).toContain('милая!');
             
@@ -73,21 +75,22 @@ describe('Branching Dialogue System', () => {
             gameState.npcDialogues.princess = null;
             
             // Взаимодействие в княжеском платье - должен показать return диалог, так как встречались раньше в этом наряде
-            result = gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess.greeting).toContain('чем могу служить');
         });
 
         test('должен показывать выборы на основе памяти', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Первая встреча
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
             
             // Второе взаимодействие
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             // Должен появиться выбор, который требует предыдущего разговора о королевстве
             const kingdomChoice = gameState.npcDialogues.princess.choices.find(c => c.id === 'continue_kingdom');
@@ -98,12 +101,13 @@ describe('Branching Dialogue System', () => {
 
     describe('Branching Dialogues', () => {
         test('должен показывать дополнительные выборы после основного выбора', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'secret_garden';
             gameState.stats.princess.outfit = 'common_dress';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Начинаем диалог с садовником
-            gameLogic.processNPCInteraction(gameState, 'gardener', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'gardener', 'princess', questIntegration);
             
             // Выбираем "Посмотреть розы" - у этого выбора есть next_choices
             const result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'see_roses', 'princess');
@@ -122,12 +126,13 @@ describe('Branching Dialogue System', () => {
         });
 
         test('должен корректно завершать диалог после дополнительных выборов', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'secret_garden';
             gameState.stats.princess.outfit = 'common_dress';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Начинаем диалог и делаем выбор с дополнительными опциями
-            gameLogic.processNPCInteraction(gameState, 'gardener', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'gardener', 'princess', questIntegration);
             let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'see_roses', 'princess');
             
             expect(result.hasFollowUp).toBe(true);
@@ -148,14 +153,15 @@ describe('Branching Dialogue System', () => {
         });
 
         test('должен применять эффекты из основного выбора', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'secret_garden';
             gameState.stats.princess.outfit = 'common_dress';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             const inventoryBefore = gameState.stats.princess.inventory.length;
             
             // Выбираем опцию, которая даёт предмет
-            gameLogic.processNPCInteraction(gameState, 'gardener', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'gardener', 'princess', questIntegration);
             gameLogic.processNPCDialogueChoice(roomId, 'alice', 'love_flowers', 'princess');
             
             // Проверяем, что предмет добавился
@@ -203,12 +209,13 @@ describe('Branching Dialogue System', () => {
 
     describe('Integration with Game Logic', () => {
         test('должен сохранять память через полный игровой цикл', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'kitchen';
             gameState.stats.princess.outfit = 'common_dress';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Полный цикл взаимодействия
-            gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             gameLogic.processNPCDialogueChoice(roomId, 'alice', 'accept_food', 'princess');
             
             // Проверяем память
@@ -218,23 +225,24 @@ describe('Branching Dialogue System', () => {
             expect(gameState.stats.princess.inventory).toContain('marta_pie');
             
             // Второе взаимодействие должно показать диалог возвращения
-            gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             expect(gameState.npcDialogues.princess.greeting).toContain('снова ты!');
         });
 
         test('должен работать независимо для разных персонажей', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'kitchen';
             gameState.stats.helper.location = 'kitchen';
             gameState.stats.princess.outfit = 'common_dress';
             gameState.stats.helper.outfit = 'common_dress';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Взаимодействие княжны
-            gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             gameLogic.processNPCDialogueChoice(roomId, 'alice', 'accept_food', 'princess');
             
             // Взаимодействие помощницы - должно быть первое знакомство
-            gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'helper', questIntegration);
             expect(gameState.npcDialogues.helper.greeting).toContain('милая!');
             
             // Проверяем, что память разная

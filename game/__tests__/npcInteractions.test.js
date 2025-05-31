@@ -16,7 +16,7 @@ describe('NPC Interactions', () => {
 
     describe('Outfit-based NPC reactions', () => {
         test('королевский советник должен хорошо относиться к княжескому наряду', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             // Княжна уже начинает в княжеском платье
             expect(gameState.stats.princess.outfit).toBe('princess_dress');
             
@@ -29,7 +29,7 @@ describe('NPC Interactions', () => {
         });
 
         test('королевский советник должен плохо относиться к простому наряду', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.outfit = 'common_dress';
             
             const dialogue = NPCData.getNPCDialogue('royal_advisor', 'common_dress');
@@ -41,7 +41,7 @@ describe('NPC Interactions', () => {
         });
 
         test('повар должен лучше относиться к простому наряду', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.outfit = 'common_dress';
             
             const dialogue = NPCData.getNPCDialogue('cook', 'common_dress');
@@ -53,7 +53,7 @@ describe('NPC Interactions', () => {
         });
 
         test('повар должен нервничать с княжеским нарядом', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.outfit = 'princess_dress';
             
             const dialogue = NPCData.getNPCDialogue('cook', 'princess_dress');
@@ -67,10 +67,11 @@ describe('NPC Interactions', () => {
 
     describe('NPC dialogue system', () => {
         test('должен начинать диалог с NPC', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             
-            const result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            const result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess).toBeDefined();
@@ -78,11 +79,12 @@ describe('NPC Interactions', () => {
         });
 
         test('должен обрабатывать выбор в диалоге', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             // Начинаем диалог
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             // Получаем первый доступный выбор
             const firstChoice = gameState.npcDialogues.princess.choices[0];
@@ -103,22 +105,24 @@ describe('NPC Interactions', () => {
         });
 
         test('должен сохранять информацию о том, кто ведет диалог', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             // Начинаем диалог как княжна
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             expect(gameState.npcDialogues.princess.activeCharacter).toBe('princess');
         });
 
         test('должен показывать разные диалоги в зависимости от наряда', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
             
             // Тест с княжеским нарядом (дружелюбный диалог)
             gameState.stats.princess.outfit = 'princess_dress';
-            let result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            let result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess.greeting).toContain('Ваше высочество');
@@ -129,7 +133,7 @@ describe('NPC Interactions', () => {
             
             // Тест с простым нарядом (враждебный диалог)
             gameState.stats.princess.outfit = 'common_dress';
-            result = gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            result = gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             expect(result.success).toBe(true);
             expect(gameState.npcDialogues.princess.greeting).toContain('простолюдинка');
@@ -137,11 +141,12 @@ describe('NPC Interactions', () => {
         });
 
         test('должен позволять закрыть диалог', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             // Начинаем диалог
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             expect(gameState.npcDialogues.princess).toBeDefined();
             
             // Закрываем диалог
@@ -152,11 +157,12 @@ describe('NPC Interactions', () => {
         });
 
         test('должен позволить игроку закрыть только свой диалог', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             // Начинаем диалог как княжна
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             
             // Пытаемся закрыть диалог как помощница (у неё нет активного диалога)
             const result = gameLogic.closeNPCDialogue(roomId, 'bob');
@@ -172,11 +178,12 @@ describe('NPC Interactions', () => {
         });
 
         test('не должен позволить другому игроку отвечать в диалоге', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             
             // Начинаем диалог как княжна
-            gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'royal_advisor', 'princess', questIntegration);
             const firstChoice = gameState.npcDialogues.princess.choices[0];
             
             // Пытаемся ответить как помощница (но с её player id)
@@ -205,16 +212,16 @@ describe('NPC Interactions', () => {
         });
 
         test('должен добавлять NPC выборы только в локациях где они есть', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             
             // В спальне никого нет
             gameState.stats.princess.location = 'princess_chamber';
-            const chamberChoices = gameLogic.getNPCInteractionChoices(gameState, 'princess');
+            const chamberChoices = gameLogic.choiceHandler.getNPCInteractionChoices(gameState, 'princess');
             expect(chamberChoices.length).toBe(0);
             
             // В тронном зале есть NPC
             gameState.stats.princess.location = 'throne_room';
-            const throneChoices = gameLogic.getNPCInteractionChoices(gameState, 'princess');
+            const throneChoices = gameLogic.choiceHandler.getNPCInteractionChoices(gameState, 'princess');
             expect(throneChoices.length).toBeGreaterThan(0);
             expect(throneChoices.every(c => c.isNPCInteraction)).toBe(true);
         });
@@ -222,12 +229,13 @@ describe('NPC Interactions', () => {
 
     describe('NPC effects and rewards', () => {
         test('должен давать предметы через диалог', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'kitchen';
             gameState.stats.princess.outfit = 'common_dress'; // Чтобы повар был дружелюбен
             
             // Начинаем диалог с поваром
-            gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
+            const questIntegration = gameLogic.lobbyLogic.getQuestIntegration(roomId);
+            gameLogic.choiceHandler.processNPCInteraction(gameState, 'cook', 'princess', questIntegration);
             
             // Ищем выбор который даёт еду
             const foodChoice = gameState.npcDialogues.princess.choices.find(c => c.id === 'accept_food');

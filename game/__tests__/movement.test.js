@@ -44,9 +44,9 @@ describe('Movement System', () => {
 
     describe('processMovement', () => {
         test('должен успешно перемещать персонажа', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             
-            const result = gameLogic.processMovement(gameState, 'corridor_upper', 'princess');
+            const result = gameLogic.choiceHandler.processMovement(gameState, 'corridor_upper', 'princess');
             
             expect(result.success).toBe(true);
             expect(gameState.stats.princess.location).toBe('corridor_upper');
@@ -54,10 +54,10 @@ describe('Movement System', () => {
         });
 
         test('не должен позволить переместиться в недоступную локацию', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             
             // Пытаемся переместиться в тронный зал напрямую из спальни
-            const result = gameLogic.processMovement(gameState, 'throne_room', 'princess');
+            const result = gameLogic.choiceHandler.processMovement(gameState, 'throne_room', 'princess');
             
             expect(result.success).toBe(false);
             expect(result.message).toContain('не можете попасть туда отсюда');
@@ -67,21 +67,20 @@ describe('Movement System', () => {
         test('должен отменять активные запросы при перемещении', () => {
             // Создаем запрос на обмен одеждой
             gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
-            expect(gameLogic.outfitRequests.has(roomId)).toBe(true);
+            expect(gameLogic.outfitSystem.getActiveOutfitRequest(roomId)).not.toBeNull();
             
-            // Перемещаемся
-            const gameState = gameLogic.games.get(roomId);
-            gameLogic.processMovement(gameState, 'corridor_upper', 'princess');
+            // Перемещаемся через makeChoice (правильный путь)
+            gameLogic.makeChoice(roomId, 'alice', 'move_to_corridor_upper', 'princess');
             
             // Запрос должен быть отменен
-            expect(gameLogic.outfitRequests.has(roomId)).toBe(false);
+            expect(gameLogic.outfitSystem.getActiveOutfitRequest(roomId)).toBeNull();
         });
 
         test('не должен менять очередь хода при перемещении', () => {
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             const turnBefore = gameState.turnOrder;
             
-            gameLogic.processMovement(gameState, 'corridor_upper', 'princess');
+            gameLogic.choiceHandler.processMovement(gameState, 'corridor_upper', 'princess');
             
             expect(gameState.turnOrder).toBe(turnBefore);
         });
@@ -109,12 +108,12 @@ describe('Movement System', () => {
     describe('Outfit restrictions based on location', () => {
         test('не должен позволить менять одежду в публичных местах', () => {
             // Перемещаемся в тронный зал
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'throne_room';
             gameState.stats.helper.location = 'throne_room';
             
             // Проверяем, что нельзя переодеваться
-            const canSwitch = gameLogic.canSwitchOutfits(gameState, 'princess');
+            const canSwitch = gameLogic.outfitSystem.canSwitchOutfits(gameState, 'princess');
             expect(canSwitch).toBe(false);
             
             // Проверяем, что кнопка обмена не появляется
@@ -125,12 +124,12 @@ describe('Movement System', () => {
 
         test('должен позволить менять одежду в уединенных местах', () => {
             // Перемещаемся в тайный сад
-            const gameState = gameLogic.games.get(roomId);
+            const gameState = gameLogic.lobbyLogic.getGameState(roomId);
             gameState.stats.princess.location = 'secret_garden';
             gameState.stats.helper.location = 'secret_garden';
             
             // Проверяем, что можно переодеваться
-            const canSwitch = gameLogic.canSwitchOutfits(gameState, 'princess');
+            const canSwitch = gameLogic.outfitSystem.canSwitchOutfits(gameState, 'princess');
             expect(canSwitch).toBe(true);
             
             // Проверяем, что кнопка обмена появляется
