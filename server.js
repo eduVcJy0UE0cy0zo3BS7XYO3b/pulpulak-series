@@ -86,24 +86,27 @@ app.get('/api/games/:gameId/config', async (req, res) => {
     }
 });
 
-// For backward compatibility, keep the old single-game approach as fallback
-// This ensures existing functionality continues to work
-let defaultGameConfig = null;
+// Initialize socket handler with GameRegistry
 let socketHandler = null;
 
-async function initializeDefaultGame() {
+async function initializeSocketHandler() {
     try {
-        // Try to load Pulpulak as the default game
-        defaultGameConfig = await gameRegistry.getGameConfig('pulpulak');
-        if (defaultGameConfig) {
-            // Initialize socket handler with backward compatibility
-            socketHandler = new SocketHandler(io, defaultGameConfig);
-            console.log('✅ Socket handler initialized with Pulpulak game');
-        } else {
-            console.warn('⚠️ Pulpulak game not found, multi-game mode only');
-        }
+        // Initialize socket handler with GameRegistry for multi-game support
+        socketHandler = new SocketHandler(io, gameRegistry);
+        console.log('✅ Socket handler initialized with GameRegistry (multi-game mode)');
     } catch (error) {
-        console.error('Failed to load default game:', error.message);
+        console.error('Failed to initialize socket handler:', error.message);
+        
+        // Fallback: try to initialize with single game for backward compatibility
+        try {
+            const defaultGameConfig = await gameRegistry.getGameConfig('pulpulak');
+            if (defaultGameConfig) {
+                socketHandler = new SocketHandler(io, defaultGameConfig);
+                console.log('⚠️ Socket handler initialized in fallback mode with Pulpulak');
+            }
+        } catch (fallbackError) {
+            console.error('Failed to initialize socket handler in fallback mode:', fallbackError.message);
+        }
     }
 }
 
@@ -123,7 +126,7 @@ async function startServer() {
     try {
         // Initialize games first
         await initializeGames();
-        await initializeDefaultGame();
+        await initializeSocketHandler();
         
         // Start the server
         server.listen(PORT, () => {

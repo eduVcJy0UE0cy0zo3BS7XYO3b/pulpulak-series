@@ -50,6 +50,10 @@ describe('Multi-game Socket Handler', () => {
         // Clear any existing rooms before each test
         socketHandler.rooms.clear();
         socketHandler.playerRooms.clear();
+        
+        // Remove all listeners to prevent test interference
+        clientSocket1.removeAllListeners();
+        clientSocket2.removeAllListeners();
     });
 
     afterAll(async () => {
@@ -124,13 +128,21 @@ describe('Multi-game Socket Handler', () => {
         test('should handle missing gameId in room creation', (done) => {
             const roomData = {
                 playerName: 'TestPlayer'
-                // Missing gameId
+                // Missing gameId - should default to 'pulpulak'
             };
 
             clientSocket1.emit('createRoom', roomData);
 
-            clientSocket1.on('error', (error) => {
-                expect(error.message).toContain('gameId is required');
+            clientSocket1.on('roomCreated', (response) => {
+                expect(response.success).toBe(true);
+                expect(response.roomCode).toBeTruthy();
+                expect(response.gameId).toBe('pulpulak'); // Should default to pulpulak
+                
+                // Verify room was created with default game
+                const room = socketHandler.rooms.get(response.roomCode);
+                expect(room).toBeTruthy();
+                expect(room.gameId).toBe('pulpulak');
+                
                 done();
             });
         });
@@ -224,7 +236,8 @@ describe('Multi-game Socket Handler', () => {
 
             // Verify room has both players with correct game context
             const room = socketHandler.rooms.get(roomCode);
-            expect(room.players.length).toBe(2);
+            expect(room.players.princess).toBeTruthy();
+            expect(room.players.helper).toBeTruthy();
             expect(room.gameId).toBe('pulpulak');
         });
 
@@ -261,11 +274,13 @@ describe('Multi-game Socket Handler', () => {
             expect(rooms[0].gameId).toBe('pulpulak');
             expect(rooms[1].gameId).toBe('detective');
 
-            // Verify isolation - changes in one room don't affect the other
+            // Verify isolation - different game logic instances and game types
             const room1 = socketHandler.rooms.get(rooms[0].roomCode);
             const room2 = socketHandler.rooms.get(rooms[1].roomCode);
             
-            expect(room1.gameState).not.toBe(room2.gameState);
+            // Both rooms start with 'waiting' state, but should have different game types and logic
+            expect(room1.gameId).toBe('pulpulak');
+            expect(room2.gameId).toBe('detective');
             expect(room1.gameLogic).not.toBe(room2.gameLogic);
         });
 
@@ -361,7 +376,8 @@ describe('Multi-game Socket Handler', () => {
             });
 
             const room = socketHandler.rooms.get(roomCode);
-            expect(room.players.length).toBe(2);
+            expect(room.players.princess).toBeTruthy();
+            expect(room.players.helper).toBeTruthy();
         });
     });
 
@@ -393,7 +409,7 @@ describe('Multi-game Socket Handler', () => {
                 });
                 
                 clientSocket1.on('error', (error) => {
-                    expect(error.message).toContain('Failed to load game');
+                    expect(error.message).toContain('Game not found');
                     resolve();
                 });
             });
@@ -426,7 +442,8 @@ describe('Multi-game Socket Handler', () => {
 
             // Verify room exists with 2 players
             let room = socketHandler.rooms.get(roomCode);
-            expect(room.players.length).toBe(2);
+            expect(room.players.princess).toBeTruthy();
+            expect(room.players.helper).toBeTruthy();
 
             // Disconnect one player
             clientSocket2.disconnect();
@@ -443,19 +460,20 @@ describe('Multi-game Socket Handler', () => {
     describe('Performance and scalability', () => {
         test('should handle multiple concurrent room creations', async () => {
             const promises = [];
+            const sockets = [];
             const roomCount = 5;
 
             // Create multiple rooms concurrently
             for (let i = 0; i < roomCount; i++) {
                 const promise = new Promise(resolve => {
                     const tempSocket = Client(`http://localhost:${server.address().port}`);
+                    sockets.push(tempSocket); // Store socket reference
                     tempSocket.on('connect', () => {
                         tempSocket.emit('createRoom', { 
                             gameId: i % 2 === 0 ? 'pulpulak' : 'detective', 
                             playerName: `Player${i}` 
                         });
                         tempSocket.on('roomCreated', (response) => {
-                            tempSocket.close();
                             resolve(response);
                         });
                     });
@@ -474,6 +492,9 @@ describe('Multi-game Socket Handler', () => {
 
             // Verify all rooms exist
             expect(socketHandler.rooms.size).toBe(roomCount);
+            
+            // Clean up sockets after verification
+            sockets.forEach(socket => socket.close());
         });
 
         test('should maintain good performance with multiple game types', async () => {

@@ -1,10 +1,10 @@
-const GameConfigInterface = require('../../engine/interfaces/GameConfig');
+const IGameConfig = require('../../engine/interfaces/IGameConfig');
 
 /**
  * Configuration for a Detective mystery game
  * This demonstrates how the same engine can power a completely different game
  */
-class DetectiveGameConfig extends GameConfigInterface {
+class DetectiveGameConfig extends IGameConfig {
     constructor() {
         super();
         
@@ -533,6 +533,190 @@ class DetectiveGameConfig extends GameConfigInterface {
             default:
                 return 'casual';
         }
+    }
+
+    // ========================== Missing IGameConfig Interface Methods ==========================
+    
+    getCharacters() {
+        return ['detective', 'journalist'];
+    }
+    
+    getCharacterNames() {
+        return {
+            detective: 'Детектив',
+            journalist: 'Журналист'
+        };
+    }
+    
+    getCharacterRoles() {
+        return {
+            detective: 'detective',
+            journalist: 'journalist'
+        };
+    }
+    
+    getInitialLocation(character) {
+        return character === 'detective' ? 'crime_scene' : 'street';
+    }
+    
+    getInitialOutfit(character) {
+        return character === 'detective' ? 'detective_coat' : 'casual_clothes';
+    }
+    
+    getAvailableOutfits(character) {
+        if (character === 'detective') {
+            return ['detective_coat', 'disguise'];
+        } else {
+            return ['casual_clothes', 'disguise'];
+        }
+    }
+    
+    canSwitchOutfits(gameState, character) {
+        // Detective game allows outfit switching in specific locations
+        const location = gameState?.stats?.[character]?.location;
+        const locationData = this.getLocationData()[location];
+        return locationData?.canChangeOutfit === true;
+    }
+    
+    getDynamicChoices(gameState, character) {
+        const choices = [];
+        
+        // Add outfit swap choice if available
+        if (this.canSwitchOutfits(gameState, character)) {
+            choices.push(this.createOutfitSwapChoice(character));
+        }
+        
+        return choices;
+    }
+    
+    createOutfitSwapChoice(character) {
+        const otherCharacter = character === 'detective' ? 'журналисту' : 'детективу';
+        return {
+            id: 'request_outfit_swap',
+            text: '🥸 Предложить поменяться одеждой',
+            description: `Предложить ${otherCharacter} поменяться для маскировки`,
+            isOutfitRequest: true
+        };
+    }
+    
+    getGameConstants() {
+        return {
+            OUTFIT_NAMES: Object.fromEntries(
+                Object.entries(this.outfits).map(([key, outfit]) => [key, outfit.name])
+            ),
+            CHARACTER_NAMES: this.getCharacterNames(),
+            CHARACTER_ROLES: this.getCharacterRoles()
+        };
+    }
+    
+    getRequestHandlers() {
+        // For now, return null - can add detective-specific request handlers later
+        return null;
+    }
+    
+    getQuestActionHandlers() {
+        // For now, return null - can add detective-specific quest handlers later
+        return null;
+    }
+    
+    validateGameRules(gameState) {
+        const errors = [];
+        
+        // Validate characters exist and have required properties
+        const characters = this.getCharacters();
+        characters.forEach(character => {
+            if (!gameState.stats || !gameState.stats[character]) {
+                errors.push(`Missing stats for character: ${character}`);
+            } else {
+                const stats = gameState.stats[character];
+                if (!stats.location) errors.push(`Missing location for ${character}`);
+                if (!stats.outfit) errors.push(`Missing outfit for ${character}`);
+            }
+        });
+        
+        // Validate current scene exists
+        if (!gameState.currentScene) {
+            errors.push('Missing current scene');
+        } else if (!this.scenes[gameState.currentScene]) {
+            errors.push(`Invalid current scene: ${gameState.currentScene}`);
+        }
+        
+        return { 
+            valid: errors.length === 0, 
+            errors 
+        };
+    }
+    
+    getGameMetadata() {
+        return {
+            id: this.gameId,
+            name: this.gameName,
+            version: this.gameVersion,
+            description: 'Кооперативная детективная игра о расследовании кражи драгоценностей',
+            minPlayers: 2,
+            maxPlayers: 2,
+            estimatedPlayTime: '45-75 minutes',
+            tags: ['mystery', 'investigation', 'cooperative', 'detective']
+        };
+    }
+    
+    // ========================== Additional Detective-Specific Methods ==========================
+    
+    isOutfitSwappingEnabled() {
+        return true;
+    }
+    
+    getOutfits() {
+        return this.outfits;
+    }
+    
+    isRequestChoice(choiceId) {
+        return choiceId === 'request_outfit_swap';
+    }
+    
+    getRequestTypeFromChoice(choiceId) {
+        if (choiceId === 'request_outfit_swap') {
+            return 'outfit_swap';
+        }
+        return null;
+    }
+    
+    canCreateRequest(gameState, requestType, character, requestData) {
+        if (requestType === 'outfit_swap') {
+            const canRequest = this.canSwitchOutfits(gameState, character);
+            return {
+                allowed: canRequest,
+                reason: canRequest ? null : 'Cannot swap outfits here'
+            };
+        }
+        
+        return { allowed: false, reason: `Unknown request type: ${requestType}` };
+    }
+    
+    executeRequest(gameState, request, responseData) {
+        if (request.type === 'outfit_swap') {
+            // Simple outfit swap for detective game
+            const fromCharacter = request.fromCharacter;
+            const toCharacter = request.toCharacter;
+            
+            const fromOutfit = gameState.stats[fromCharacter].outfit;
+            const toOutfit = gameState.stats[toCharacter].outfit;
+            
+            // Swap outfits
+            gameState.stats[fromCharacter].outfit = toOutfit;
+            gameState.stats[toCharacter].outfit = fromOutfit;
+            
+            return {
+                success: true,
+                gameState: gameState,
+                message: 'Outfits swapped successfully for disguise'
+            };
+        }
+        
+        return {
+            success: false,
+            message: `Unknown request type: ${request.type}`
+        };
     }
 }
 
