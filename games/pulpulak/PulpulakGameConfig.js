@@ -22,6 +22,38 @@ class PulpulakGameConfig extends IGameConfig {
         this.gameVersion = '1.0.0';
     }
 
+    // ========================== Game Metadata ==========================
+    
+    static getMetadata() {
+        return {
+            id: 'pulpulak',
+            name: 'Княжна Пулпулак',
+            description: 'Кооперативная средневековая приключенческая игра о княжне и её верном помощнике',
+            minPlayers: 2,
+            maxPlayers: 2,
+            estimatedDuration: '60-90 минут',
+            thumbnail: '/assets/games/pulpulak/thumbnail.jpg',
+            roles: [
+                { id: 'princess', name: 'Княжна', description: 'Главная героиня приключения' },
+                { id: 'helper', name: 'Помощник', description: 'Верный спутник княжны' }
+            ],
+            features: ['outfit-system', 'loyalty-tracking', 'cooperative-choices'],
+            tags: ['cooperative', 'story', 'medieval', 'role-playing']
+        };
+    }
+
+    getClientData() {
+        return {
+            metadata: this.constructor.getMetadata(),
+            uiConfig: {
+                theme: 'medieval',
+                primaryColor: '#8B4513',
+                secondaryColor: '#D2691E',
+                fontFamily: 'serif'
+            }
+        };
+    }
+
     // ========================== Data Access Methods ==========================
     
     getStoryData() { 

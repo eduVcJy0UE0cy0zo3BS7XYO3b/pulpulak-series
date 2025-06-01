@@ -9,7 +9,7 @@ class DetectiveGameConfig extends GameConfigInterface {
         super();
         
         // Basic game info
-        this.gameId = 'detective_mystery';
+        this.gameId = 'detective';
         this.gameName = 'Detective Mystery: The Missing Jewels';
         this.gameVersion = '1.0.0';
         this.maxPlayers = 2;
@@ -77,6 +77,38 @@ class DetectiveGameConfig extends GameConfigInterface {
             },
             globalMemory: {
                 crime_discovered: true
+            }
+        };
+    }
+
+    // ========================== Game Metadata ==========================
+    
+    static getMetadata() {
+        return {
+            id: 'detective',
+            name: 'Детективное дело',
+            description: 'Загадочное расследование в викторианском Лондоне - детектив и журналист работают вместе',
+            minPlayers: 2,
+            maxPlayers: 2,
+            estimatedDuration: '45-75 минут',
+            thumbnail: '/assets/games/detective/thumbnail.jpg',
+            roles: [
+                { id: 'detective', name: 'Детектив', description: 'Опытный сыщик с доступом к официальным ресурсам' },
+                { id: 'journalist', name: 'Журналист', description: 'Любопытный репортёр с социальными связями' }
+            ],
+            features: ['investigation', 'evidence-collection', 'deduction', 'outfit-system'],
+            tags: ['mystery', 'investigation', 'victorian', 'cooperative']
+        };
+    }
+
+    getClientData() {
+        return {
+            metadata: this.constructor.getMetadata(),
+            uiConfig: {
+                theme: 'detective',
+                primaryColor: '#2C3E50',
+                secondaryColor: '#34495E',
+                fontFamily: 'serif'
             }
         };
     }
@@ -458,6 +490,24 @@ class DetectiveGameConfig extends GameConfigInterface {
                 rewards: ['exclusive_story', 'insider_contacts']
             }
         };
+    }
+
+    // ========================== IGameConfig Interface Methods ==========================
+    
+    getStoryData() {
+        return this.scenes;
+    }
+    
+    getLocationData() {
+        return this.locations;
+    }
+    
+    getNPCData() {
+        return this.npcs;
+    }
+    
+    getQuestData() {
+        return this.quests;
     }
 
     // Override outfit type mapping for detective game
