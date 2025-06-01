@@ -8,9 +8,26 @@ const CoopGame = {
         this.app = vnode.attrs.app;
         this.chatVisible = false;
         this.dialogueProcessing = false; // Флаг для предотвращения двойных кликов
+        this.availableGames = [];
+        
+        // Load game info for dynamic role names
+        this.loadGameInfo();
         
         // Setup socket listeners
         this.setupSocketListeners();
+    },
+
+    async loadGameInfo() {
+        try {
+            const response = await fetch('/api/games');
+            if (response.ok) {
+                const data = await response.json();
+                this.availableGames = data.games || [];
+                m.redraw();
+            }
+        } catch (error) {
+            console.error('Failed to load game info:', error);
+        }
     },
     
     getGameData(vnode) {
@@ -67,6 +84,50 @@ const CoopGame = {
             return 'helper';
         }
         return null;
+    },
+
+    getGameInfo(gameId) {
+        if (!this.availableGames) return null;
+        return this.availableGames.find(game => game.id === gameId);
+    },
+
+    getRoleDisplayName(roleKey, gameId) {
+        const gameInfo = this.getGameInfo(gameId);
+        if (!gameInfo || !gameInfo.roles) {
+            // Fallback to constants for backward compatibility
+            return CHARACTER_NAMES[roleKey] || roleKey;
+        }
+
+        // Map role slots to actual game roles
+        const roleIndex = roleKey === 'princess' ? 0 : 1;
+        const role = gameInfo.roles[roleIndex];
+        return role ? role.name : CHARACTER_NAMES[roleKey] || roleKey;
+    },
+
+    getRoleIcon(roleKey, gameId) {
+        const gameInfo = this.getGameInfo(gameId);
+        if (!gameInfo || !gameInfo.roles) {
+            // Fallback icons
+            return roleKey === 'princess' ? '👑' : '🧙‍♀️';
+        }
+
+        // Map role slots to actual game roles
+        const roleIndex = roleKey === 'princess' ? 0 : 1;
+        const role = gameInfo.roles[roleIndex];
+        
+        // Get icon based on role id
+        const iconMap = {
+            princess: '👑',
+            helper: '🧙‍♀️',
+            detective: '🔍',
+            journalist: '📰'
+        };
+        
+        return role ? (iconMap[role.id] || '🎭') : (iconMap[roleKey] || '🎭');
+    },
+
+    getCharacterDisplayName(character, gameId) {
+        return this.getRoleDisplayName(character, gameId);
     },
 
 
@@ -205,7 +266,9 @@ const CoopGame = {
         });
 
         if (isTargetPlayer) {
-            const fromCharacterName = activeRequest.fromCharacter === 'princess' ? 'Княжна' : 'Помощница';
+            const gameData = this.getGameData(vnode);
+            const gameId = gameData?.gameId || 'pulpulak';
+            const fromCharacterName = this.getCharacterDisplayName(activeRequest.fromCharacter, gameId);
             return m('.outfit-request-notification.incoming', [
                 m('.request-header', '👗 Запрос на обмен одеждой'),
                 m('.request-message', `${fromCharacterName} предлагает поменяться одеждой!`),
@@ -219,7 +282,9 @@ const CoopGame = {
                 ])
             ]);
         } else if (isRequestInitiator) {
-            const targetCharacterName = activeRequest.targetCharacter === 'princess' ? 'Княжна' : 'Помощница';
+            const gameData = this.getGameData(vnode);
+            const gameId = gameData?.gameId || 'pulpulak';
+            const targetCharacterName = this.getCharacterDisplayName(activeRequest.targetCharacter, gameId);
             return m('.outfit-request-notification.outgoing', [
                 m('.request-header', '👗 Запрос отправлен'),
                 m('.request-message', `Ожидаем ответа от ${targetCharacterName}...`),
@@ -281,7 +346,7 @@ const CoopGame = {
         if (playerRole === 'princess') {
             return m('.single-player-layout', [
                 m('.player-panel.panel-princess', [
-                    m('h3', { style: 'background: #ffcccb; color: #8b0000;' }, '👑 Княжна Пулпулак'),
+                    m('h3', { style: 'background: #ffcccb; color: #8b0000;' }, `${this.getRoleIcon('princess', data?.gameId || 'pulpulak')} ${this.getRoleDisplayName('princess', data?.gameId || 'pulpulak')}`),
                     m('div', [
                         m('strong', 'Игрок: '), data.players.princess?.name || '-',
                         m('br'),
@@ -308,7 +373,7 @@ const CoopGame = {
         } else if (playerRole === 'helper') {
             return m('.single-player-layout', [
                 m('.player-panel.panel-helper', [
-                    m('h3', { style: 'background: #e0f2e7; color: #155724;' }, '🧙‍♀️ Помощница ведьмы'),
+                    m('h3', { style: 'background: #e0f2e7; color: #155724;' }, `${this.getRoleIcon('helper', data?.gameId || 'pulpulak')} ${this.getRoleDisplayName('helper', data?.gameId || 'pulpulak')}`),
                     m('div', [
                         m('strong', 'Игрок: '), data.players.helper?.name || '-',
                         m('br'),

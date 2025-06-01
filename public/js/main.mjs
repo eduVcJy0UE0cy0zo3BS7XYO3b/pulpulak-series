@@ -4,6 +4,7 @@ import SocketManager from './socketManager.js';
 import NotificationManager from './notificationManager.mjs';
 import Login from './screens/login.mjs';
 import MainMenu from './screens/mainMenu.mjs';
+import GameSelection from './screens/gameSelection.mjs';
 import Lobby from './screens/lobby.mjs';
 import CoopGame from './screens/coopGame.mjs';
 
@@ -18,6 +19,7 @@ class App {
         this.screens = {
             login: Login,
             mainMenu: MainMenu,
+            gameSelection: GameSelection,
             lobby: Lobby,
             coopGame: CoopGame
         };
@@ -134,7 +136,16 @@ class App {
 
     // Socket methods
     createRoom() {
+        // Legacy method for backward compatibility
         this.socketManager.createRoom();
+    }
+
+    createRoomWithGame(gameId) {
+        this.socketManager.createRoomWithGame(gameId);
+    }
+
+    showGameSelection(mode = 'create', roomId = '') {
+        this.showScreen('gameSelection', { mode, roomId });
     }
 
     joinRoom(roomId) {

@@ -36,6 +36,14 @@ class SocketManager {
         this.socket.emit('create-room', { username: this.username });
     }
 
+    createRoomWithGame(gameId) {
+        console.log(`📝 Создание комнаты для игры: ${gameId}...`);
+        this.socket.emit('createRoom', { 
+            gameId: gameId,
+            playerName: this.username 
+        });
+    }
+
     joinRoom(roomId) {
         console.log(`🚪 Присоединение к комнате: ${roomId}`);
         // Support both roomId and roomCode for compatibility
