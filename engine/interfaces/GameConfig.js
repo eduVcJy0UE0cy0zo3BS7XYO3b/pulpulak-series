@@ -12,7 +12,6 @@ class GameConfigInterface {
         
         // Character system
         this.characters = {};
-        this.outfits = {};
         
         // Story system
         this.scenes = {};
@@ -25,7 +24,6 @@ class GameConfigInterface {
         
         // Game mechanics
         this.features = {
-            outfitSwapping: true,
             turnBasedDialogue: true,
             questSystem: true,
             locationSystem: true,
@@ -35,7 +33,6 @@ class GameConfigInterface {
         // Initial state
         this.initialState = {
             startingLocation: '',
-            startingOutfits: {},
             startingItems: {},
             globalMemory: {}
         };
@@ -77,12 +74,6 @@ class GameConfigInterface {
         return this.characters[role];
     }
 
-    /**
-     * Gets all available outfits
-     */
-    getOutfits() {
-        return this.outfits;
-    }
 
     /**
      * Gets scene definition by ID
@@ -123,12 +114,6 @@ class GameConfigInterface {
         return location.npcs.map(npcId => this.getNPC(npcId)).filter(npc => npc);
     }
 
-    /**
-     * Checks if outfit swapping is enabled
-     */
-    isOutfitSwappingEnabled() {
-        return this.features.outfitSwapping;
-    }
 
     /**
      * Checks if quest system is enabled
@@ -160,11 +145,15 @@ class GameConfigInterface {
         Object.keys(this.characters).forEach(character => {
             stats[character] = {
                 location: this.initialState.startingLocation,
-                outfit: this.initialState.startingOutfits[character] || 'default',
                 inventory: [...(this.initialState.startingItems[character] || [])],
                 awareness: 0,
                 npcsPresent: []
             };
+            
+            // Добавляем outfit только если есть система outfits
+            if (this.initialState.startingOutfits && this.initialState.startingOutfits[character]) {
+                stats[character].outfit = this.initialState.startingOutfits[character];
+            }
         });
         
         return stats;

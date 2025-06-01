@@ -59,11 +59,8 @@ class PulpulakGameConfig extends GameConfigInterface {
         
         // Game features
         this.features = {
+            ...this.features, // наследуем базовые features
             outfitSwapping: true,
-            turnBasedDialogue: true,
-            questSystem: true,
-            locationSystem: true,
-            npcInteractions: true,
             dynamicNPCMovement: true
         };
         
@@ -199,6 +196,16 @@ class PulpulakGameConfig extends GameConfigInterface {
     // Проверить, можно ли переодеваться (делегируется игре)
     canSwitchOutfits(gameState, character) {
         return PulpulakOutfitLogic.canSwitchOutfits(gameState, character);
+    }
+
+    // Проверить, включен ли обмен одеждой
+    isOutfitSwappingEnabled() {
+        return this.features.outfitSwapping;
+    }
+
+    // Получить все доступные наряды
+    getOutfits() {
+        return this.outfits;
     }
 
     // === УНИВЕРСАЛЬНАЯ СИСТЕМА ЗАПРОСОВ ===
