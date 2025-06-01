@@ -366,6 +366,12 @@ class GameEngine {
         if (!this.config.isOutfitSwappingEnabled()) return false;
         if (this.outfitRequests.has(gameState.roomId)) return false;
         
+        // Делегируем проверку игре, если у неё есть такой метод
+        if (typeof this.config.canRequestOutfitSwap === 'function') {
+            return this.config.canRequestOutfitSwap(gameState, character, this.outfitRequests.has(gameState.roomId));
+        }
+        
+        // Fallback к базовой логике
         const currentLocation = gameState.stats[character].location;
         const locationData = this.config.getLocation(currentLocation);
         
@@ -388,6 +394,12 @@ class GameEngine {
      * Create outfit swap choice
      */
     createOutfitSwapChoice(character) {
+        // Делегируем создание выбора игре, если у неё есть такой метод
+        if (typeof this.config.createOutfitSwapChoice === 'function') {
+            return this.config.createOutfitSwapChoice(character);
+        }
+        
+        // Fallback к базовой логике
         return {
             id: 'request_outfit_swap',
             text: '👗 Предложить поменяться одеждой',
@@ -439,16 +451,22 @@ class GameEngine {
         const gameState = this.getGame(roomId);
         
         if (accepted) {
-            // Swap outfits
-            const fromOutfit = gameState.stats[request.fromCharacter].outfit;
-            const toOutfit = gameState.stats[request.toCharacter].outfit;
-            
-            const updatedState = this.stateManager.updateState(gameState, draft => {
-                draft.stats[request.fromCharacter].outfit = toOutfit;
-                draft.stats[request.toCharacter].outfit = fromOutfit;
-            });
-            
-            this.updateGame(roomId, updatedState);
+            // Делегируем выполнение обмена игре, если у неё есть такой метод
+            if (typeof this.config.executeOutfitSwap === 'function') {
+                const updatedGameState = this.config.executeOutfitSwap(gameState);
+                this.updateGame(roomId, updatedGameState);
+            } else {
+                // Fallback к базовой логике
+                const fromOutfit = gameState.stats[request.fromCharacter].outfit;
+                const toOutfit = gameState.stats[request.toCharacter].outfit;
+                
+                const updatedState = this.stateManager.updateState(gameState, draft => {
+                    draft.stats[request.fromCharacter].outfit = toOutfit;
+                    draft.stats[request.toCharacter].outfit = fromOutfit;
+                });
+                
+                this.updateGame(roomId, updatedState);
+            }
         }
         
         this.outfitRequests.delete(roomId);

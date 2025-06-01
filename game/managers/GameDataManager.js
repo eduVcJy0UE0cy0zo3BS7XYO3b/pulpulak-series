@@ -48,7 +48,7 @@ class GameDataManager {
     /**
      * Получить данные для отправки клиенту
      */
-    buildClientGameData(roomId, choicesForCharacters, activeOutfitRequest) {
+    buildClientGameData(roomId, choicesForCharacters, activeRequest) {
         const gameState = this.getGame(roomId);
         if (!gameState) return null;
 
@@ -69,7 +69,9 @@ class GameDataManager {
                 princess: LocationData.getLocationInfo(gameState.stats.princess.location),
                 helper: LocationData.getLocationInfo(gameState.stats.helper.location)
             },
-            activeOutfitRequest: activeOutfitRequest,
+            activeRequest: activeRequest,
+            // Keep legacy field for backward compatibility
+            activeOutfitRequest: activeRequest?.type === 'outfit_swap' ? activeRequest : null,
             npcDialogues: {
                 princess: gameState.npcDialogues?.princess || null,
                 helper: gameState.npcDialogues?.helper || null

@@ -27,6 +27,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Тестовая страница для отладки
+app.get('/test-outfit', (req, res) => {
+    res.sendFile(path.join(__dirname, 'test_outfit_button.html'));
+});
+
 // Инициализация обработчика сокетов
 const socketHandler = new SocketHandler(io);
 

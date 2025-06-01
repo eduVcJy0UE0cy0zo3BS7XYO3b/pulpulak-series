@@ -3,7 +3,8 @@ const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
 
 // Mock для CoopStoryData
 jest.mock('../../games/pulpulak/data/coopStoryData', () => ({
-    getScene: jest.fn()
+    getScene: jest.fn(),
+    getAllScenes: jest.fn(() => ['coop_awakening', 'outfit_discussion'])
 }));
 
 describe('CoopGameLogic', () => {

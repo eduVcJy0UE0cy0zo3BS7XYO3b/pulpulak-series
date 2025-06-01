@@ -27,8 +27,8 @@ const CoopGame = {
         // Clean up socket listeners
         const socket = this.app.socketManager.socket;
         socket.off('chat-message');
-        socket.off('outfit-request-created');
-        socket.off('outfit-request-resolved');
+        socket.off('request-created');
+        socket.off('request-resolved');
         socket.off('game-state-updated');
     },
 
@@ -40,12 +40,12 @@ const CoopGame = {
             m.redraw();
         });
 
-        socket.on('outfit-request-created', (data) => {
+        socket.on('request-created', (data) => {
             this.handleOutfitRequestCreated(data);
             m.redraw();
         });
 
-        socket.on('outfit-request-resolved', (data) => {
+        socket.on('request-resolved', (data) => {
             this.handleOutfitRequestResolved(data);
             m.redraw();
         });
@@ -103,8 +103,10 @@ const CoopGame = {
     },
 
     handleOutfitRequestCreated(data) {
+        console.log('👗 MJS: handleOutfitRequestCreated called with:', data);
         // Update game data to include the new request
         if (data.gameData) {
+            console.log('👗 MJS: Updating screen data with:', data.gameData);
             this.app.screenData = data.gameData;
         }
         m.redraw();
@@ -125,12 +127,12 @@ const CoopGame = {
 
     respondToOutfitRequest(accept, vnode) {
         const gameData = this.getGameData(vnode);
-        const activeOutfitRequest = gameData?.activeOutfitRequest;
-        if (activeOutfitRequest && gameData) {
-            this.app.socketManager.socket.emit('respond-outfit-swap', {
-                roomId: gameData.roomId,
-                requestId: activeOutfitRequest.requestId,
-                accepted: accept
+        const activeRequest = gameData?.activeRequest || gameData?.activeOutfitRequest;
+        if (activeRequest && gameData) {
+            console.log('👗 MJS: Responding to outfit request:', accept);
+            this.app.socketManager.socket.emit('respond-request', {
+                accepted: accept,
+                responseData: {}
             });
         }
     },
@@ -140,9 +142,11 @@ const CoopGame = {
         if (gameData) {
             // Handle outfit swap request separately
             if (choiceId === 'request_outfit_swap') {
-                this.app.socketManager.socket.emit('request-outfit-swap', {
-                    roomId: gameData.roomId,
-                    character: character
+                console.log('👗 MJS: Sending outfit swap request for', character);
+                this.app.socketManager.socket.emit('create-request', {
+                    requestType: 'outfit_swap',
+                    character: character,
+                    requestData: {}
                 });
             } else {
                 this.app.makeChoice(gameData.roomId, choiceId, character);
@@ -169,15 +173,39 @@ const CoopGame = {
 
     renderOutfitRequest(vnode) {
         const gameData = this.getGameData(vnode);
-        const activeOutfitRequest = gameData?.activeOutfitRequest;
-        if (!activeOutfitRequest) return null;
+        const activeRequest = gameData?.activeRequest || gameData?.activeOutfitRequest;
+        
+        console.log('👗 MJS: renderOutfitRequest debug:', {
+            gameData: gameData,
+            activeRequest: activeRequest,
+            hasActiveRequest: !!activeRequest
+        });
+        
+        if (!activeRequest) {
+            console.log('👗 MJS: No active request found');
+            return null;
+        }
 
         const socketId = this.app.socketManager.socket.id;
-        const isTargetPlayer = activeOutfitRequest.targetPlayerId === socketId;
-        const isRequestInitiator = activeOutfitRequest.fromPlayerId === socketId;
+        const playerRole = this.getPlayerRole(vnode);
+        
+        console.log('👗 MJS: Request details:', {
+            activeRequest: activeRequest,
+            playerRole: playerRole,
+            socketId: socketId
+        });
+        
+        // Определяем, кто является целью запроса
+        const isTargetPlayer = activeRequest.targetCharacter === playerRole;
+        const isRequestInitiator = activeRequest.fromCharacter === playerRole;
+        
+        console.log('👗 MJS: Player status:', {
+            isTargetPlayer: isTargetPlayer,
+            isRequestInitiator: isRequestInitiator
+        });
 
         if (isTargetPlayer) {
-            const fromCharacterName = activeOutfitRequest.fromCharacter === 'princess' ? 'Княжна' : 'Помощница';
+            const fromCharacterName = activeRequest.fromCharacter === 'princess' ? 'Княжна' : 'Помощница';
             return m('.outfit-request-notification.incoming', [
                 m('.request-header', '👗 Запрос на обмен одеждой'),
                 m('.request-message', `${fromCharacterName} предлагает поменяться одеждой!`),
@@ -191,7 +219,7 @@ const CoopGame = {
                 ])
             ]);
         } else if (isRequestInitiator) {
-            const targetCharacterName = activeOutfitRequest.targetCharacter === 'princess' ? 'Княжна' : 'Помощница';
+            const targetCharacterName = activeRequest.targetCharacter === 'princess' ? 'Княжна' : 'Помощница';
             return m('.outfit-request-notification.outgoing', [
                 m('.request-header', '👗 Запрос отправлен'),
                 m('.request-message', `Ожидаем ответа от ${targetCharacterName}...`),
@@ -206,8 +234,22 @@ const CoopGame = {
         const isMyRole = playerRole === character;
         const style = choice.danger ? 'danger' : (choice.safe ? 'success' : 'primary');
         
+        // Добавляем логи для отладки
+        if (choice.id === 'request_outfit_swap' || (choice.text && choice.text.includes('поменяться одеждой'))) {
+            console.log('👗 MJS: Rendering outfit swap button:', {
+                choiceId: choice.id,
+                character: character,
+                playerRole: playerRole,
+                isMyRole: isMyRole,
+                text: choice.text
+            });
+        }
+        
         return m(`button.btn.btn-${style}`, {
-            onclick: () => this.makeChoice(choice.id, character, vnode),
+            onclick: () => {
+                console.log('👗 MJS: Button clicked:', choice.id, 'for', character);
+                this.makeChoice(choice.id, character, vnode);
+            },
             disabled: !isMyRole && !choice.isOutfitRequest
         }, [
             choice.icon ? `${choice.icon} ` : '',

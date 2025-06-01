@@ -15,7 +15,7 @@ class CoopGameLogic {
         this.gameData = managers.gameData;
         this.playerData = managers.playerData;
         this.questData = managers.questData;
-        this.outfitData = managers.outfitData;
+        this.requestData = managers.requestData;
         
         // Оставляем для обратной совместимости
         this.stateManager = new GameStateManager();
@@ -57,52 +57,40 @@ class CoopGameLogic {
         }
     }
 
-    // Создать запрос на обмен одеждой
+    // Создать запрос на обмен одеждой (через универсальную систему)
     createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter) {
-        return this.outfitData.createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter);
+        return this.requestData.createRequest(roomId, 'outfit_swap', fromPlayerId, fromCharacter);
     }
 
-    // Ответить на запрос обмена одеждой
+    // Ответить на запрос обмена одеждой (через универсальную систему)
     respondToOutfitSwapRequest(roomId, playerId, accepted) {
-        return this.outfitData.respondToOutfitSwapRequest(roomId, playerId, accepted);
+        return this.requestData.respondToRequest(roomId, playerId, accepted);
     }
 
-    // Проверить, можно ли переодеваться
+    // Создать запрос любого типа
+    createRequest(roomId, requestType, fromPlayerId, fromCharacter, requestData = {}) {
+        return this.requestData.createRequest(roomId, requestType, fromPlayerId, fromCharacter, requestData);
+    }
+
+    // Ответить на запрос любого типа
+    respondToRequest(roomId, playerId, accepted, responseData = {}) {
+        return this.requestData.respondToRequest(roomId, playerId, accepted, responseData);
+    }
+
+    // Проверить, можно ли переодеваться (делегируется игре)
     canSwitchOutfits(gameState, character) {
-        return this.outfitData.canSwitchOutfits(gameState.roomId, character);
-    }
-
-    validateOutfitChange(gameState, character) {
-        const validators = [
-            () => this.hasNoNPCs(gameState, character),
-            () => this.locationAllowsOutfitChange(gameState, character),
-            () => this.playersInSameLocation(gameState, character),
-            () => this.bothPlayersHaveNoNPCs(gameState, character)
-        ];
+        // Делегируем проверку в конкретную игру через GameConfig
+        const PulpulakGameConfig = require('../games/pulpulak/PulpulakGameConfig');
+        const gameConfig = new PulpulakGameConfig();
         
-        return validators.every(validate => validate());
+        if (typeof gameConfig.canSwitchOutfits === 'function') {
+            return gameConfig.canSwitchOutfits(gameState, character);
+        }
+        
+        // Fallback - разрешаем переодевание
+        return true;
     }
 
-    hasNoNPCs(gameState, character) {
-        const characterStats = gameState.stats[character];
-        return !characterStats.npcsPresent || characterStats.npcsPresent.length === 0;
-    }
-
-    locationAllowsOutfitChange(gameState, character) {
-        const characterStats = gameState.stats[character];
-        return LocationData.canChangeOutfit(characterStats.location);
-    }
-
-    playersInSameLocation(gameState, character) {
-        const characterStats = gameState.stats[character];
-        const otherCharacter = character === 'princess' ? 'helper' : 'princess';
-        return characterStats.location === gameState.stats[otherCharacter].location;
-    }
-
-    bothPlayersHaveNoNPCs(gameState, character) {
-        const otherCharacter = character === 'princess' ? 'helper' : 'princess';
-        return this.hasNoNPCs(gameState, otherCharacter);
-    }
 
     // Получить выборы для персонажа
     getChoicesForCharacter(gameState, character, sceneData) {
@@ -125,7 +113,7 @@ class CoopGameLogic {
         const choices = [];
         
         // Выбор обмена одеждой
-        if (this.canSwitchOutfits(gameState, character) && !this.outfitData.hasActiveRequest(gameState.roomId)) {
+        if (this.canSwitchOutfits(gameState, character) && !this.requestData.hasActiveRequest(gameState.roomId)) {
             choices.push(this.createOutfitSwapChoice(character));
         }
         
@@ -139,6 +127,15 @@ class CoopGameLogic {
     }
 
     createOutfitSwapChoice(character) {
+        // Делегируем создание выбора в конкретную игру через GameConfig
+        const PulpulakGameConfig = require('../games/pulpulak/PulpulakGameConfig');
+        const gameConfig = new PulpulakGameConfig();
+        
+        if (typeof gameConfig.createOutfitSwapChoice === 'function') {
+            return gameConfig.createOutfitSwapChoice(character);
+        }
+        
+        // Fallback к стандартному выбору
         const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
         return {
             id: 'request_outfit_swap',
@@ -248,7 +245,7 @@ class CoopGameLogic {
             this.gameData.updateScene(gameState.roomId, choice.nextScene);
             
             // При смене сцены отменяем активные запросы
-            this.outfitData.cancelOutfitRequest(gameState.roomId);
+            this.requestData.cancelRequest(gameState.roomId);
         }
 
         // Меняем очередь хода
@@ -262,12 +259,22 @@ class CoopGameLogic {
 
     // Получить активный запрос для комнаты
     getActiveOutfitRequest(roomId) {
-        return this.outfitData.getActiveOutfitRequest(roomId);
+        return this.requestData.getActiveRequest(roomId);
+    }
+
+    // Получить активный запрос любого типа
+    getActiveRequest(roomId) {
+        return this.requestData.getActiveRequest(roomId);
     }
 
     // Отменить запрос 
     cancelOutfitRequest(roomId) {
-        this.outfitData.cancelOutfitRequest(roomId);
+        this.requestData.cancelRequest(roomId);
+    }
+
+    // Отменить запрос любого типа
+    cancelRequest(roomId) {
+        return this.requestData.cancelRequest(roomId);
     }
 
     // Применить эффекты выбора
@@ -416,8 +423,8 @@ class CoopGameLogic {
         }
 
         // Отменяем активные запросы при перемещении любого персонажа
-        if (this.outfitData.hasActiveRequest(gameState.roomId)) {
-            this.cancelOutfitRequest(gameState.roomId);
+        if (this.requestData.hasActiveRequest(gameState.roomId)) {
+            this.cancelRequest(gameState.roomId);
         }
 
         // Перемещаем конкретного персонажа через PlayerDataManager
@@ -436,7 +443,7 @@ class CoopGameLogic {
 
     removeGame(roomId) {
         this.gameData.deleteGame(roomId);
-        this.outfitData.clearRoomRequests(roomId);
+        this.requestData.clearRoomRequests(roomId);
     }
 
     // Получить выборы взаимодействия с NPC
@@ -823,9 +830,9 @@ class CoopGameLogic {
     // Имитация старого gameLogic.outfitRequests для тестов
     get outfitRequests() {
         return {
-            get: (roomId) => this.outfitData.getActiveOutfitRequest(roomId),
-            has: (roomId) => this.outfitData.hasActiveRequest(roomId),
-            delete: (roomId) => this.outfitData.cancelOutfitRequest(roomId)
+            get: (roomId) => this.requestData.getActiveRequest(roomId),
+            has: (roomId) => this.requestData.hasActiveRequest(roomId),
+            delete: (roomId) => this.requestData.cancelRequest(roomId)
         };
     }
 }

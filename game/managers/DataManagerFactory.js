@@ -6,7 +6,7 @@
 const GameDataManager = require('./GameDataManager');
 const PlayerDataManager = require('./PlayerDataManager');
 const QuestDataManager = require('./QuestDataManager');
-const OutfitDataManager = require('./OutfitDataManager');
+const RequestManager = require('./RequestManager');
 
 class DataManagerFactory {
     constructor() {
@@ -27,13 +27,16 @@ class DataManagerFactory {
         // Создаём зависимые менеджеры
         const playerDataManager = new PlayerDataManager(gameDataManager);
         const questDataManager = new QuestDataManager(gameDataManager);
-        const outfitDataManager = new OutfitDataManager(gameDataManager, playerDataManager);
+        const requestManager = new RequestManager(gameDataManager, playerDataManager);
+
+        // Регистрируем игровые обработчики запросов
+        this.registerGameRequestHandlers(requestManager);
 
         this.managers = {
             gameData: gameDataManager,
             playerData: playerDataManager,
             questData: questDataManager,
-            outfitData: outfitDataManager
+            requestData: requestManager
         };
 
         return this.managers;
@@ -44,6 +47,20 @@ class DataManagerFactory {
      */
     getManagers() {
         return this.managers || this.createManagers();
+    }
+
+    /**
+     * Зарегистрировать обработчики запросов для игр
+     */
+    registerGameRequestHandlers(requestManager) {
+        try {
+            // Регистрируем обработчики для игры Pulpulak
+            const PulpulakRequestHandlers = require('../../games/pulpulak/requestHandlers');
+            PulpulakRequestHandlers.registerHandlers(requestManager);
+            console.log('✅ Зарегистрированы обработчики запросов для Pulpulak');
+        } catch (error) {
+            console.warn('⚠️ Не удалось зарегистрировать обработчики запросов Pulpulak:', error.message);
+        }
     }
 
     /**

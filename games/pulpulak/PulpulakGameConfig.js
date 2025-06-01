@@ -6,6 +6,8 @@ const LocationData = require('./data/locationData');
 const NPCData = require('./data/npcData');
 const QuestData = require('./data/questData');
 const { OUTFIT_NAMES, CHARACTER_NAMES } = require('./data/constants');
+const PulpulakRequestHandlers = require('./requestHandlers');
+const PulpulakOutfitLogic = require('./data/outfitLogic');
 
 /**
  * Configuration for the Pulpulak cooperative adventure game
@@ -39,7 +41,7 @@ class PulpulakGameConfig extends GameConfigInterface {
                 type: 'noble',
                 description: 'Богатое платье знатной особы'
             },
-            simple_dress: {
+            common_dress: {
                 name: 'Простое платье',
                 type: 'common', 
                 description: 'Обычная одежда простолюдинки'
@@ -70,7 +72,7 @@ class PulpulakGameConfig extends GameConfigInterface {
             startingLocation: 'princess_chamber',
             startingOutfits: {
                 princess: 'princess_dress',
-                helper: 'simple_dress'
+                helper: 'common_dress'
             },
             startingItems: {
                 princess: [],
@@ -184,6 +186,93 @@ class PulpulakGameConfig extends GameConfigInterface {
     getNPCsForLocation(locationId, gameState = null, character = null) {
         // Use the real NPCData system
         return NPCData.getNPCsForLocation(locationId, gameState, character);
+    }
+
+    // Метод для регистрации игровых обработчиков запросов
+    registerRequestHandlers(requestManager) {
+        if (PulpulakRequestHandlers && typeof PulpulakRequestHandlers.registerHandlers === 'function') {
+            PulpulakRequestHandlers.registerHandlers(requestManager);
+            console.log('🎮 Registered Pulpulak request handlers');
+        }
+    }
+
+    // Проверить, можно ли переодеваться (делегируется игре)
+    canSwitchOutfits(gameState, character) {
+        return PulpulakOutfitLogic.canSwitchOutfits(gameState, character);
+    }
+
+    // === УНИВЕРСАЛЬНАЯ СИСТЕМА ЗАПРОСОВ ===
+    
+    // Получить динамические выборы для персонажа
+    getDynamicChoices(gameState, character) {
+        const choices = [];
+        
+        // Добавляем выбор обмена одеждой если доступен
+        if (this.isOutfitSwappingEnabled() && PulpulakOutfitLogic.canRequestOutfitSwap(gameState, character, false)) {
+            choices.push(PulpulakOutfitLogic.createOutfitSwapChoice(character));
+        }
+        
+        return choices;
+    }
+    
+    // Проверить, является ли выбор запросом
+    isRequestChoice(choiceId) {
+        return choiceId === 'request_outfit_swap';
+    }
+    
+    // Получить тип запроса из выбора
+    getRequestTypeFromChoice(choiceId) {
+        if (choiceId === 'request_outfit_swap') {
+            return 'outfit_swap';
+        }
+        return null;
+    }
+    
+    // Проверить, можно ли создать запрос
+    canCreateRequest(gameState, requestType, character, requestData) {
+        if (requestType === 'outfit_swap') {
+            const canRequest = PulpulakOutfitLogic.canRequestOutfitSwap(gameState, character, false);
+            return {
+                allowed: canRequest,
+                reason: canRequest ? null : 'Cannot swap outfits here'
+            };
+        }
+        
+        return { allowed: false, reason: `Unknown request type: ${requestType}` };
+    }
+    
+    // Выполнить запрос
+    executeRequest(gameState, request, responseData) {
+        if (request.type === 'outfit_swap') {
+            const updatedGameState = PulpulakOutfitLogic.executeOutfitSwap(gameState);
+            return {
+                success: true,
+                gameState: updatedGameState,
+                message: 'Outfits swapped successfully'
+            };
+        }
+        
+        return {
+            success: false,
+            message: `Unknown request type: ${request.type}`
+        };
+    }
+    
+    // === ОБРАТНАЯ СОВМЕСТИМОСТЬ ===
+    
+    // Создать выбор для обмена одеждой (для обратной совместимости)
+    createOutfitSwapChoice(character) {
+        return PulpulakOutfitLogic.createOutfitSwapChoice(character);
+    }
+
+    // Выполнить обмен одеждой (для обратной совместимости)
+    executeOutfitSwap(gameState) {
+        return PulpulakOutfitLogic.executeOutfitSwap(gameState);
+    }
+
+    // Проверить, может ли персонаж запросить обмен одеждой (для обратной совместимости)
+    canRequestOutfitSwap(gameState, character, hasActiveRequest = false) {
+        return PulpulakOutfitLogic.canRequestOutfitSwap(gameState, character, hasActiveRequest);
     }
 }
 
