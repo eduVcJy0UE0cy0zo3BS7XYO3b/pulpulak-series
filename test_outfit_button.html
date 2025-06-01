@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Outfit Button</title>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <h1>Test Outfit Button</h1>
+    <button id="test-button">👗 Предложить поменяться одеждой</button>
+    
+    <div id="logs"></div>
+    
+    <script>
+        const socket = io();
+        const logsDiv = document.getElementById('logs');
+        
+        function log(message) {
+            const p = document.createElement('p');
+            p.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            logsDiv.appendChild(p);
+            console.log(message);
+        }
+        
+        socket.on('connect', () => {
+            log('Connected to server');
+        });
+        
+        socket.on('error', (message) => {
+            log('Error: ' + message);
+        });
+        
+        socket.on('request-created', (data) => {
+            log('Request created: ' + JSON.stringify(data));
+        });
+        
+        socket.on('request-resolved', (data) => {
+            log('Request resolved: ' + JSON.stringify(data));
+        });
+        
+        document.getElementById('test-button').addEventListener('click', () => {
+            log('Button clicked - sending create-request');
+            
+            const requestData = {
+                requestType: 'outfit_swap',
+                character: 'princess',
+                requestData: {}
+            };
+            
+            log('Sending: ' + JSON.stringify(requestData));
+            socket.emit('create-request', requestData);
+        });
+    </script>
+</body>
+</html>

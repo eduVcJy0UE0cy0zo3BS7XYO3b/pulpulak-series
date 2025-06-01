@@ -76,9 +76,6 @@ class SocketHandler {
         socket.on('start-coop-game', (data) => this.handleStartCoopGame(socket, data));
         socket.on('make-choice', (data) => this.handleMakeChoice(socket, data));
         socket.on('chat-message', (data) => this.handleChatMessage(socket, data));
-        // Deprecated: используйте create-request и respond-request для всех запросов
-        socket.on('request-outfit-swap', (data) => this.handleOutfitSwapRequest(socket, data));
-        socket.on('respond-outfit-swap', (data) => this.handleOutfitSwapResponse(socket, data));
         socket.on('create-request', (data) => this.handleCreateRequest(socket, data));
         socket.on('respond-request', (data) => this.handleRespondRequest(socket, data));
         socket.on('npc-dialogue-choice', (data) => this.handleNPCDialogueChoice(socket, data));
@@ -168,13 +165,6 @@ class SocketHandler {
             room.gameState = 'playing';
             const gameData = this.gameLogic.startGame(data.roomId, room.players);
             
-            console.log('📡 Запуск игры, данные:', {
-                roomId: data.roomId,
-                stats: gameData.stats,
-                helperOutfit: gameData.stats?.helper?.outfit,
-                princessOutfit: gameData.stats?.princess?.outfit
-            });
-            
             this.io.to(data.roomId).emit('game-started', gameData);
         } catch (error) {
             console.error('❌ Ошибка запуска игры:', error);
@@ -193,13 +183,6 @@ class SocketHandler {
             const room = this.rooms.get(roomId);
             if (!room || room.gameState !== 'playing') {
                 socket.emit('error', 'Игра не найдена или не началась');
-                return;
-            }
-
-            console.log(`🎯 Получен выбор: ${data.choiceId} от ${socket.id} для ${data.character}`);
-
-            if (data.choiceId === 'request_outfit_swap') {
-                socket.emit('request-outfit-swap', { character: data.character });
                 return;
             }
 
@@ -237,36 +220,7 @@ class SocketHandler {
         }
     }
 
-    handleOutfitSwapRequest(socket, data) {
-        try {
-            console.log(`👗 Запрос обмена одеждой от ${socket.id} для ${data.character} (deprecated API)`);
-            
-            // Перенаправляем на универсальную систему
-            this.handleCreateRequest(socket, {
-                requestType: 'outfit_swap',
-                character: data.character,
-                requestData: {}
-            });
-        } catch (error) {
-            console.error('❌ Ошибка создания запроса обмена одеждой:', error);
-            socket.emit('error', 'Не удалось создать запрос');
-        }
-    }
 
-    handleOutfitSwapResponse(socket, data) {
-        try {
-            console.log(`👗 Ответ на запрос обмена: ${data.accepted} от ${socket.id} (deprecated API)`);
-            
-            // Перенаправляем на универсальную систему
-            this.handleRespondRequest(socket, {
-                accepted: data.accepted,
-                responseData: {}
-            });
-        } catch (error) {
-            console.error('❌ Ошибка ответа на запрос обмена одеждой:', error);
-            socket.emit('error', 'Не удалось обработать ответ');
-        }
-    }
 
     handleNPCDialogueChoice(socket, data) {
         try {
@@ -281,8 +235,6 @@ class SocketHandler {
                 socket.emit('error', 'Игра не найдена или не началась');
                 return;
             }
-
-            console.log(`💬 Выбор в диалоге NPC от ${socket.id}: ${data.choiceId}`);
 
             const result = this.gameLogic.processNPCDialogueChoice(roomId, socket.id, data.choiceId, data.character);
             
@@ -312,8 +264,6 @@ class SocketHandler {
                 socket.emit('error', 'Вы не находитесь в игре');
                 return;
             }
-
-            console.log(`💬 Закрытие диалога NPC от ${socket.id}`);
 
             const result = this.gameLogic.closeNPCDialogue(roomId, socket.id);
             
@@ -353,8 +303,6 @@ class SocketHandler {
                 return;
             }
 
-            console.log(`📨 Создание запроса типа ${data.requestType} от ${socket.id} для ${data.character}`);
-
             const result = this.gameLogic.createRequest(
                 roomId, 
                 data.requestType, 
@@ -366,21 +314,12 @@ class SocketHandler {
             if (result.success) {
                 const updatedGameData = this.gameLogic.getGameData(roomId);
                 
-                // Отправляем универсальное событие
                 this.io.to(roomId).emit('request-created', {
                     request: result.request,
                     message: result.message,
                     gameData: updatedGameData
                 });
                 
-                // Для обратной совместимости: отправляем старое событие для outfit_swap
-                if (data.requestType === 'outfit_swap') {
-                    this.io.to(roomId).emit('outfit-request-created', {
-                        request: result.request,
-                        message: result.message,
-                        gameData: updatedGameData
-                    });
-                }
             } else {
                 socket.emit('error', result.message);
             }
@@ -398,8 +337,6 @@ class SocketHandler {
                 return;
             }
 
-            console.log(`📨 Ответ на запрос: ${data.accepted} от ${socket.id}`);
-
             const result = this.gameLogic.respondToRequest(
                 roomId, 
                 socket.id, 
@@ -410,7 +347,6 @@ class SocketHandler {
             if (result.success) {
                 const updatedGameData = this.gameLogic.getGameData(roomId);
                 
-                // Отправляем универсальное событие
                 this.io.to(roomId).emit('request-resolved', {
                     accepted: result.accepted,
                     declined: result.declined,
@@ -418,16 +354,6 @@ class SocketHandler {
                     gameData: updatedGameData
                 });
                 
-                // Для обратной совместимости: отправляем старое событие для outfit_swap
-                const activeRequest = this.gameLogic.getActiveRequest(roomId);
-                if (!activeRequest || activeRequest.type === 'outfit_swap') {
-                    this.io.to(roomId).emit('outfit-request-resolved', {
-                        accepted: result.accepted,
-                        declined: result.declined,
-                        message: result.message,
-                        gameData: updatedGameData
-                    });
-                }
             } else {
                 socket.emit('error', result.message);
             }

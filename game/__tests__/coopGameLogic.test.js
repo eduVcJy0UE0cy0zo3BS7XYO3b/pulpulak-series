@@ -218,12 +218,13 @@ describe('CoopGameLogic', () => {
         });
 
         describe('processChoice', () => {
-            test('не должна обрабатывать запрос на смену одежды как обычный выбор', () => {
+            test('должна обрабатывать запрос на смену одежды через универсальную систему', () => {
                 const gameState = gameLogic.games.get(roomId);
                 const result = gameLogic.processChoice(gameState, 'request_outfit_swap', 'princess');
 
-                expect(result.success).toBe(false);
-                expect(result.message).toContain('отдельный обработчик');
+                // Теперь запрос на смену одежды обрабатывается через универсальную систему
+                expect(result.success).toBe(true);
+                expect(result.message).toContain('поменяться одеждой');
             });
 
             test('должна применить эффекты выбора', () => {

@@ -47,11 +47,10 @@ describe('Game Integration Tests', () => {
             const swapRequest = gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
             expect(swapRequest.success).toBe(true);
             
-            // 5. Проверяем, что кнопка обмена скрылась
+            // 5. Проверяем, что активный запрос создан
             const dataWithRequest = gameLogic.getGameData(roomId);
-            const princessChoices = dataWithRequest.choices.princess;
-            const swapButton = princessChoices.find(c => c.id === 'request_outfit_swap');
-            expect(swapButton).toBeUndefined();
+            expect(dataWithRequest.activeRequest).toBeDefined();
+            expect(dataWithRequest.activeRequest.type).toBe('outfit_swap');
 
             // 6. Принимаем запрос
             const swapResponse = gameLogic.respondToOutfitSwapRequest(roomId, 'bob', true);
@@ -63,9 +62,8 @@ describe('Game Integration Tests', () => {
             expect(afterSwap.stats.princess.outfit).toBe('common_dress');
             expect(afterSwap.stats.helper.outfit).toBe('princess_dress');
 
-            // 8. Проверяем, что кнопка обмена снова появилась
-            const swapButtonAfter = afterSwap.choices.princess.find(c => c.id === 'request_outfit_swap');
-            expect(swapButtonAfter).toBeDefined();
+            // 8. Проверяем, что запрос больше не активен
+            expect(afterSwap.activeRequest).toBeNull();
         });
 
         test('должен корректно обработать отклонение запроса на обмен', () => {

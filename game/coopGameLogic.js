@@ -112,9 +112,13 @@ class CoopGameLogic {
     getSpecialChoices(gameState, character) {
         const choices = [];
         
-        // Выбор обмена одеждой
-        if (this.canSwitchOutfits(gameState, character) && !this.requestData.hasActiveRequest(gameState.roomId)) {
-            choices.push(this.createOutfitSwapChoice(character));
+        // Получаем динамические выборы из игровой конфигурации
+        const PulpulakGameConfig = require('../games/pulpulak/PulpulakGameConfig');
+        const gameConfig = new PulpulakGameConfig();
+        
+        if (typeof gameConfig.getDynamicChoices === 'function') {
+            const dynamicChoices = gameConfig.getDynamicChoices(gameState, character);
+            choices.push(...dynamicChoices);
         }
         
         // Выборы перемещения
@@ -205,12 +209,16 @@ class CoopGameLogic {
     }
 
     processChoice(gameState, choiceId, character) {
-        // Запросы одежды обрабатываются отдельно
+        // Запросы одежды теперь обрабатываются через универсальную систему
         if (choiceId === 'request_outfit_swap') {
-            return { 
-                success: false, 
-                message: "Используйте отдельный обработчик для запросов обмена одеждой" 
-            };
+            // Получаем ID игрока из gameState
+            const playerId = gameState.players[character]?.id;
+            if (!playerId) {
+                return { success: false, message: "Игрок не найден" };
+            }
+            
+            // Создаем запрос через универсальную систему
+            return this.createRequest(gameState.roomId, 'outfit_swap', playerId, character, {});
         }
 
         // Проверка на перемещение
@@ -313,9 +321,9 @@ class CoopGameLogic {
 
         const sceneData = CoopStoryData.getScene(gameState.currentScene);
         const choicesForCharacters = this.buildChoicesData(gameState, sceneData);
-        const activeOutfitRequest = this.getActiveOutfitRequest(roomId);
+        const activeRequest = this.getActiveRequest(roomId);
         
-        return this.gameData.buildClientGameData(roomId, choicesForCharacters, activeOutfitRequest);
+        return this.gameData.buildClientGameData(roomId, choicesForCharacters, activeRequest);
     }
 
     buildSceneData(sceneData) {

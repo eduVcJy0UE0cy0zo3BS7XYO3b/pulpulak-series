@@ -8,7 +8,7 @@ class GameEngine {
     constructor(gameConfig) {
         this.config = gameConfig;
         this.games = new Map();
-        this.outfitRequests = new Map();
+        this.activeRequests = new Map();
         this.stateManager = new ImmerStateManager();
         
         // Validate configuration
@@ -48,7 +48,7 @@ class GameEngine {
      */
     removeGame(roomId) {
         this.games.delete(roomId);
-        this.outfitRequests.delete(roomId);
+        this.activeRequests.delete(roomId);
     }
 
     // === GAME STATE ===
@@ -76,7 +76,7 @@ class GameEngine {
 
         const sceneData = this.config.getScene(gameState.currentScene);
         const choicesForCharacters = this.buildChoicesData(gameState, sceneData);
-        const activeOutfitRequest = this.getActiveOutfitRequest(roomId);
+        const activeRequest = this.getActiveRequest(roomId);
         
         return {
             roomId,
@@ -86,7 +86,7 @@ class GameEngine {
             },
             characters: this.buildCharacterData(gameState),
             choices: choicesForCharacters,
-            activeOutfitRequest,
+            activeRequest,
             turnOrder: gameState.turnOrder
         };
     }
@@ -169,8 +169,8 @@ class GameEngine {
         
         this.updateGame(roomId, updatedState);
         
-        // Cancel any active outfit requests when scene changes
-        this.cancelOutfitRequest(roomId);
+        // Cancel any active requests when scene changes
+        this.cancelRequest(roomId);
         
         return updatedState;
     }
@@ -202,9 +202,10 @@ class GameEngine {
     getDynamicChoices(gameState, character) {
         const choices = [];
         
-        // Outfit swapping
-        if (this.config.isOutfitSwappingEnabled() && this.canRequestOutfitSwap(gameState, character)) {
-            choices.push(this.createOutfitSwapChoice(character));
+        // Game-specific dynamic choices
+        if (typeof this.config.getDynamicChoices === 'function') {
+            const dynamicChoices = this.config.getDynamicChoices(gameState, character);
+            choices.push(...dynamicChoices);
         }
         
         // Movement
@@ -238,9 +239,10 @@ class GameEngine {
             return { success: false, message: 'Invalid player' };
         }
 
-        // Process different types of choices
-        if (choiceId === 'request_outfit_swap') {
-            return this.processOutfitSwapRequest(roomId, playerId, character);
+        // Check if this is a request choice
+        if (typeof this.config.isRequestChoice === 'function' && this.config.isRequestChoice(choiceId)) {
+            const requestType = this.config.getRequestTypeFromChoice(choiceId);
+            return this.createRequest(roomId, requestType, playerId, character, {});
         }
         
         if (choiceId.startsWith('move_to_')) {
@@ -298,8 +300,8 @@ class GameEngine {
             return { success: false, message: 'Unknown location' };
         }
         
-        // Cancel outfit requests when moving
-        this.cancelOutfitRequest(roomId);
+        // Cancel requests when moving
+        this.cancelRequest(roomId);
         
         // Update character location
         const updatedState = this.stateManager.updateState(gameState, draft => {
@@ -357,139 +359,102 @@ class GameEngine {
         };
     }
 
-    // === OUTFIT SYSTEM ===
+    // === REQUEST SYSTEM ===
 
     /**
-     * Check if character can request outfit swap
+     * Create a generic request
      */
-    canRequestOutfitSwap(gameState, character) {
-        if (!this.config.isOutfitSwappingEnabled()) return false;
-        if (this.outfitRequests.has(gameState.roomId)) return false;
-        
-        // Делегируем проверку игре, если у неё есть такой метод
-        if (typeof this.config.canRequestOutfitSwap === 'function') {
-            return this.config.canRequestOutfitSwap(gameState, character, this.outfitRequests.has(gameState.roomId));
-        }
-        
-        // Fallback к базовой логике
-        const currentLocation = gameState.stats[character].location;
-        const locationData = this.config.getLocation(currentLocation);
-        
-        return locationData.canChangeOutfit && this.playersInSameLocation(gameState, character);
-    }
-
-    /**
-     * Check if players are in same location
-     */
-    playersInSameLocation(gameState, character) {
-        const characters = Object.keys(this.config.characters);
-        const characterLocation = gameState.stats[character].location;
-        
-        return characters.every(char => 
-            gameState.stats[char].location === characterLocation
-        );
-    }
-
-    /**
-     * Create outfit swap choice
-     */
-    createOutfitSwapChoice(character) {
-        // Делегируем создание выбора игре, если у неё есть такой метод
-        if (typeof this.config.createOutfitSwapChoice === 'function') {
-            return this.config.createOutfitSwapChoice(character);
-        }
-        
-        // Fallback к базовой логике
-        return {
-            id: 'request_outfit_swap',
-            text: '👗 Предложить поменяться одеждой',
-            description: 'Предложить обмен нарядами',
-            isOutfitRequest: true
-        };
-    }
-
-    /**
-     * Process outfit swap request
-     */
-    processOutfitSwapRequest(roomId, playerId, character) {
+    createRequest(roomId, requestType, playerId, character, requestData = {}) {
         const gameState = this.getGame(roomId);
-        
-        if (!this.canRequestOutfitSwap(gameState, character)) {
-            return { success: false, message: 'Cannot swap outfits here' };
+        if (!gameState) {
+            return { success: false, message: 'Game not found' };
         }
-        
+
+        // Check if there's already an active request
+        if (this.activeRequests.has(roomId)) {
+            return { success: false, message: 'Another request is already active' };
+        }
+
+        // Delegate request validation to game config
+        if (typeof this.config.canCreateRequest === 'function') {
+            const canCreate = this.config.canCreateRequest(gameState, requestType, character, requestData);
+            if (!canCreate.allowed) {
+                return { success: false, message: canCreate.reason || 'Request not allowed' };
+            }
+        }
+
         const requestId = this.generateRequestId();
         const characters = Object.keys(this.config.characters);
         const otherCharacter = characters.find(char => char !== character);
-        
+
         const request = {
             id: requestId,
+            type: requestType,
             fromCharacter: character,
             toCharacter: otherCharacter,
             fromPlayer: playerId,
+            data: requestData,
             status: 'pending'
         };
-        
-        this.outfitRequests.set(roomId, request);
-        
+
+        this.activeRequests.set(roomId, request);
+
         return {
             success: true,
-            message: 'Outfit swap request sent',
+            message: 'Request created',
             request
         };
     }
 
     /**
-     * Respond to outfit swap request
+     * Respond to a generic request
      */
-    respondToOutfitSwapRequest(roomId, playerId, accepted) {
-        const request = this.outfitRequests.get(roomId);
+    respondToRequest(roomId, playerId, accepted, responseData = {}) {
+        const request = this.activeRequests.get(roomId);
         if (!request) {
             return { success: false, message: 'No active request' };
         }
-        
+
         const gameState = this.getGame(roomId);
-        
+
         if (accepted) {
-            // Делегируем выполнение обмена игре, если у неё есть такой метод
-            if (typeof this.config.executeOutfitSwap === 'function') {
-                const updatedGameState = this.config.executeOutfitSwap(gameState);
-                this.updateGame(roomId, updatedGameState);
+            // Delegate request execution to game config
+            if (typeof this.config.executeRequest === 'function') {
+                const result = this.config.executeRequest(gameState, request, responseData);
+                if (result.success) {
+                    this.updateGame(roomId, result.gameState);
+                } else {
+                    this.activeRequests.delete(roomId);
+                    return result;
+                }
             } else {
-                // Fallback к базовой логике
-                const fromOutfit = gameState.stats[request.fromCharacter].outfit;
-                const toOutfit = gameState.stats[request.toCharacter].outfit;
-                
-                const updatedState = this.stateManager.updateState(gameState, draft => {
-                    draft.stats[request.fromCharacter].outfit = toOutfit;
-                    draft.stats[request.toCharacter].outfit = fromOutfit;
-                });
-                
-                this.updateGame(roomId, updatedState);
+                console.warn(`No executeRequest method found for request type: ${request.type}`);
             }
         }
-        
-        this.outfitRequests.delete(roomId);
-        
+
+        this.activeRequests.delete(roomId);
+
         return {
             success: true,
-            message: accepted ? 'Outfits swapped!' : 'Request declined',
+            accepted: accepted,
+            declined: !accepted,
+            message: accepted ? 'Request accepted' : 'Request declined',
             gameData: this.getGameData(roomId)
         };
     }
 
     /**
-     * Get active outfit request
+     * Get active request
      */
-    getActiveOutfitRequest(roomId) {
-        return this.outfitRequests.get(roomId) || null;
+    getActiveRequest(roomId) {
+        return this.activeRequests.get(roomId) || null;
     }
 
     /**
-     * Cancel outfit request
+     * Cancel active request
      */
-    cancelOutfitRequest(roomId) {
-        this.outfitRequests.delete(roomId);
+    cancelRequest(roomId) {
+        this.activeRequests.delete(roomId);
     }
 
     // === SCENE CHOICES ===
@@ -522,7 +487,7 @@ class GameEngine {
             updatedState = this.stateManager.updateState(updatedState, draft => {
                 draft.currentScene = choice.nextScene;
             });
-            this.cancelOutfitRequest(roomId);
+            this.cancelRequest(roomId);
         }
         
         // Switch turn
