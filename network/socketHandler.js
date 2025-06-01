@@ -3,17 +3,18 @@ const CoopGameLogic = require('../game/coopGameLogic');
 const gameConfig = require('../config/gameConfig');
 
 class SocketHandler {
-    constructor(io) {
+    constructor(io, gameConfiguration) {
         this.io = io;
         this.rooms = new Map();
         this.playerRooms = new Map(); // socketId -> roomId
+        this.gameConfig = gameConfiguration;
         
-        // Create game logic instance
-        this.gameLogic = new CoopGameLogic();
+        // Create game logic instance with configuration
+        this.gameLogic = new CoopGameLogic(gameConfiguration);
         
         this.setupEventHandlers();
         
-        console.log('🎮 Socket handler initialized with CoopGameLogic');
+        console.log('🎮 Socket handler initialized with CoopGameLogic and game configuration');
     }
 
     setupEventHandlers() {

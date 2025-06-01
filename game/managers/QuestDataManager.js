@@ -3,11 +3,10 @@
  * Отвечает за состояние квестов, их прогресс и завершение
  */
 
-const QuestData = require('../../games/pulpulak/data/questData');
-
 class QuestDataManager {
     constructor(gameDataManager) {
         this.gameData = gameDataManager;
+        this.questData = gameDataManager.gameConfig.getQuestData();
     }
 
     /**
@@ -53,7 +52,7 @@ class QuestDataManager {
      * Проверить, можно ли начать квест
      */
     canStartQuest(roomId, character, questId) {
-        const quest = QuestData.getQuest(questId);
+        const quest = this.questData.getQuest(questId);
         
         // Проверяем, что квест существует и предназначен для данного персонажа
         if (!quest || quest.character !== character) {
@@ -81,7 +80,7 @@ class QuestDataManager {
             return { success: false, message: "Нельзя начать этот квест" };
         }
 
-        const quest = QuestData.createQuestInstance(questId);
+        const quest = this.questData.createQuestInstance(questId);
         if (!quest) {
             return { success: false, message: "Квест не найден" };
         }
@@ -248,7 +247,7 @@ class QuestDataManager {
      * Получить все доступные квесты для персонажа
      */
     getAvailableQuests(roomId, character) {
-        const allQuests = QuestData.getAllQuests();
+        const allQuests = this.questData.getAllQuests();
         const availableQuests = [];
 
         for (const quest of allQuests) {

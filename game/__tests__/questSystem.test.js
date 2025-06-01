@@ -1,9 +1,11 @@
 const CoopGameLogic = require('../coopGameLogic');
 const { refreshGameState } = require('./testHelpers');
 const QuestData = require('../../games/pulpulak/data/questData');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('Quest System', () => {
     let gameLogic;
+    let gameConfig;
     const roomId = 'TEST_QUEST';
     const players = {
         princess: { id: 'alice', name: 'Алиса' },
@@ -11,7 +13,8 @@ describe('Quest System', () => {
     };
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         gameLogic.startGame(roomId, players);
     });
 

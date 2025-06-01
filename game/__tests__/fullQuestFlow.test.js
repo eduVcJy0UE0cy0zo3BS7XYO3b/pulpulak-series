@@ -1,8 +1,10 @@
 const CoopGameLogic = require('../coopGameLogic');
 const { refreshGameState } = require('./testHelpers');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('Полный цикл прохождения квестов с переодеваниями', () => {
     let gameLogic;
+    let gameConfig;
     const roomId = 'TEST_FULL_FLOW';
     const players = {
         princess: { id: 'alice', name: 'Алиса' },
@@ -10,7 +12,8 @@ describe('Полный цикл прохождения квестов с пер�
     };
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         gameLogic.startGame(roomId, players);
     });
 

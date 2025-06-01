@@ -1,233 +1,216 @@
-const GameConfigInterface = require('../../engine/interfaces/GameConfig');
+const IGameConfig = require('../../engine/interfaces/IGameConfig');
 
 // Import game data from local data folder
 const CoopStoryData = require('./data/coopStoryData');
 const LocationData = require('./data/locationData');
 const NPCData = require('./data/npcData');
 const QuestData = require('./data/questData');
-const { OUTFIT_NAMES, CHARACTER_NAMES } = require('./data/constants');
+const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./data/constants');
 const PulpulakRequestHandlers = require('./requestHandlers');
 const PulpulakOutfitLogic = require('./data/outfitLogic');
+const questActionHandlers = require('./data/questActionHandlers');
 
 /**
- * Configuration for the Pulpulak cooperative adventure game
+ * Pulpulak game configuration implementing IGameConfig interface
+ * Provides complete game data and logic for the Pulpulak cooperative adventure
  */
-class PulpulakGameConfig extends GameConfigInterface {
+class PulpulakGameConfig extends IGameConfig {
     constructor() {
         super();
-        
-        // Basic game info
-        this.gameId = 'pulpulak_coop';
-        this.gameName = 'Pulpulak Cooperative Adventure';
+        this.gameId = 'pulpulak';
+        this.gameName = 'Принцесса Пулпулак';
         this.gameVersion = '1.0.0';
-        this.maxPlayers = 2;
-        
-        // Characters
-        this.characters = {
-            princess: {
-                name: 'Княжна',
-                description: 'Молодая знатная девушка'
-            },
-            helper: {
-                name: 'Помощница',
-                description: 'Простая девушка, помогающая княжне'
-            }
-        };
-        
-        // Outfits system
-        this.outfits = {
-            princess_dress: {
-                name: 'Княжеское платье',
-                type: 'noble',
-                description: 'Богатое платье знатной особы'
-            },
-            common_dress: {
-                name: 'Простое платье',
-                type: 'common', 
-                description: 'Обычная одежда простолюдинки'
-            }
-        };
-        
-        // Story scenes
-        this.scenes = this.loadScenes();
-        this.startingScene = 'coop_awakening';
-        
-        // World data
-        this.locations = this.loadLocations();
-        this.npcs = this.loadNPCs();
-        this.quests = this.loadQuests();
-        
-        // Game features
-        this.features = {
-            ...this.features, // наследуем базовые features
-            outfitSwapping: true,
-            dynamicNPCMovement: true
-        };
-        
-        // Initial state
-        this.initialState = {
-            startingLocation: 'princess_chamber',
-            startingOutfits: {
-                princess: 'princess_dress',
-                helper: 'common_dress'
-            },
-            startingItems: {
-                princess: [],
-                helper: ['silver_earrings', 'family_medallion']
-            },
-            globalMemory: {}
-        };
     }
 
-    loadScenes() {
-        // Use real game scenes
-        const scenes = {};
-        const allSceneIds = CoopStoryData.getAllScenes();
-        
-        allSceneIds.forEach(sceneId => {
-            scenes[sceneId] = CoopStoryData.getScene(sceneId);
-        });
-        
-        return scenes;
+    // ========================== Data Access Methods ==========================
+    
+    getStoryData() { 
+        return CoopStoryData; 
+    }
+    
+    getLocationData() { 
+        return LocationData; 
+    }
+    
+    getNPCData() { 
+        return NPCData; 
+    }
+    
+    getQuestData() { 
+        return QuestData; 
     }
 
-    loadLocations() {
-        // Convert real location data to our format
-        const locations = {};
-        const locationIds = LocationData.getAllLocations();
-        
-        locationIds.forEach(locationId => {
-            const locationInfo = LocationData.getLocationInfo(locationId);
-            if (locationInfo) {
-                locations[locationId] = {
-                    name: locationInfo.name,
-                    description: locationInfo.description,
-                    connections: locationInfo.connections.map(conn => conn.id),
-                    canChangeOutfit: LocationData.canChangeOutfit(locationId),
-                    icon: locationInfo.icon,
-                    npcs: this.getBaseNPCsForLocation(locationId)
-                };
-            }
-        });
-        
-        return locations;
+    // ========================== Character Configuration ==========================
+    
+    getCharacters() { 
+        return ['princess', 'helper']; 
     }
-
-    loadNPCs() {
-        // Extract NPCs from the real NPCData  
-        const npcs = {};
-        
-        // Get all NPC IDs by checking what locations have NPCs
-        const allNPCIds = new Set();
-        const locationIds = LocationData.getAllLocations();
-        
-        locationIds.forEach(locationId => {
-            const locationNPCs = this.getBaseNPCsForLocation(locationId);
-            locationNPCs.forEach(npcId => allNPCIds.add(npcId));
-        });
-        
-        // Load each NPC
-        allNPCIds.forEach(npcId => {
-            const npc = NPCData.getNPC(npcId);
-            if (npc) {
-                npcs[npcId] = {
-                    id: npc.id,
-                    name: npc.name,
-                    description: npc.description,
-                    likesNoble: npc.likesNoble,
-                    dialogue: npc.dialogue
-                };
-            }
-        });
-        
-        return npcs;
+    
+    getCharacterNames() { 
+        return CHARACTER_NAMES; 
     }
-
-    loadQuests() {
-        // Load real quest data
-        const quests = {};
-        const allQuests = QuestData.getAllQuests();
-        
-        Object.keys(allQuests).forEach(questId => {
-            quests[questId] = allQuests[questId];
-        });
-        
-        return quests;
+    
+    getCharacterRoles() { 
+        return CHARACTER_ROLES; 
     }
-
-    // Helper method to get base NPCs for location
-    getBaseNPCsForLocation(locationId) {
-        // Use the real NPCData to get base locations
-        try {
-            const baseNPCs = NPCData.getNPCsForLocation(locationId);
-            return baseNPCs.map(npc => npc.id);
-        } catch (error) {
-            // Fallback to hardcoded list for the main locations
-            const baseLocations = {
-                'princess_chamber': [],
-                'throne_room': ['royal_advisor', 'guard_captain'],
-                'kitchen': ['cook'],
-                'garden': ['herbalist'],
-                'secret_garden': ['gardener'],
-                'armory': ['weaponsmith'],
-                'chapel': ['priest'],
-                'library': ['librarian'],
-                'secret_archive': [],
-                'greenhouse': []
-            };
-            return baseLocations[locationId] || [];
+    
+    getInitialLocation(character) { 
+        return character === 'princess' ? 'princess_chamber' : 'servant_quarters';
+    }
+    
+    getInitialOutfit(character) { 
+        return character === 'princess' ? 'nightgown' : 'common_dress';
+    }
+    
+    getAvailableOutfits(character) { 
+        if (character === 'princess') {
+            return ['nightgown', 'princess_dress', 'court_dress'];
+        } else {
+            return ['common_dress', 'servant_outfit'];
         }
     }
 
-    // Override to implement dynamic NPC movement using real NPCData
-    getNPCsForLocation(locationId, gameState = null, character = null) {
-        // Use the real NPCData system
-        return NPCData.getNPCsForLocation(locationId, gameState, character);
-    }
-
-    // Метод для регистрации игровых обработчиков запросов
-    registerRequestHandlers(requestManager) {
-        if (PulpulakRequestHandlers && typeof PulpulakRequestHandlers.registerHandlers === 'function') {
-            PulpulakRequestHandlers.registerHandlers(requestManager);
-            console.log('🎮 Registered Pulpulak request handlers');
-        }
-    }
-
-    // Проверить, можно ли переодеваться (делегируется игре)
-    canSwitchOutfits(gameState, character) {
+    // ========================== Game Logic Methods ==========================
+    
+    canSwitchOutfits(gameState, character) { 
         return PulpulakOutfitLogic.canSwitchOutfits(gameState, character);
     }
-
-    // Проверить, включен ли обмен одеждой
-    isOutfitSwappingEnabled() {
-        return this.features.outfitSwapping;
-    }
-
-    // Получить все доступные наряды
-    getOutfits() {
-        return this.outfits;
-    }
-
-    // === УНИВЕРСАЛЬНАЯ СИСТЕМА ЗАПРОСОВ ===
     
-    // Получить динамические выборы для персонажа
-    getDynamicChoices(gameState, character) {
+    getDynamicChoices(gameState, character) { 
         const choices = [];
         
-        // Добавляем выбор обмена одеждой если доступен
-        if (this.isOutfitSwappingEnabled() && PulpulakOutfitLogic.canRequestOutfitSwap(gameState, character, false)) {
-            choices.push(PulpulakOutfitLogic.createOutfitSwapChoice(character));
+        // Add outfit swap choice if available
+        if (this.canSwitchOutfits(gameState, character)) {
+            choices.push(this.createOutfitSwapChoice(character));
         }
         
         return choices;
     }
     
-    // Проверить, является ли выбор запросом
+    createOutfitSwapChoice(character) { 
+        const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
+        return {
+            id: 'request_outfit_swap',
+            text: '👗 Предложить поменяться одеждой',
+            description: `Предложить ${otherCharacter} поменяться нарядами`,
+            isOutfitRequest: true
+        };
+    }
+
+    // ========================== Request Handlers ==========================
+    
+    getRequestHandlers() { 
+        return PulpulakRequestHandlers;
+    }
+    
+    /**
+     * Gets quest action handlers for processing quest-related dialogue choices
+     * @returns {Object} Quest action handlers object
+     */
+    getQuestActionHandlers() { 
+        return questActionHandlers;
+    }
+
+    // ========================== Validation and Rules ==========================
+    
+    validateGameRules(gameState) { 
+        const errors = [];
+        
+        // Validate characters exist and have required properties
+        const characters = this.getCharacters();
+        characters.forEach(character => {
+            if (!gameState.stats || !gameState.stats[character]) {
+                errors.push(`Missing stats for character: ${character}`);
+            } else {
+                const stats = gameState.stats[character];
+                if (!stats.location) errors.push(`Missing location for ${character}`);
+                if (!stats.outfit) errors.push(`Missing outfit for ${character}`);
+            }
+        });
+        
+        // Validate current scene exists
+        if (!gameState.currentScene) {
+            errors.push('Missing current scene');
+        } else if (!this.getStoryData().getScene(gameState.currentScene)) {
+            errors.push(`Invalid current scene: ${gameState.currentScene}`);
+        }
+        
+        return { 
+            valid: errors.length === 0, 
+            errors 
+        };
+    }
+    
+    getGameConstants() { 
+        return {
+            OUTFIT_NAMES,
+            CHARACTER_NAMES,
+            CHARACTER_ROLES
+        };
+    }
+
+    // ========================== Game Metadata ==========================
+    
+    getGameMetadata() { 
+        return {
+            id: this.gameId,
+            name: this.gameName,
+            version: this.gameVersion,
+            description: 'Кооперативная текстовая приключенческая игра о принцессе и её помощнице',
+            minPlayers: 2,
+            maxPlayers: 2,
+            estimatedPlayTime: '30-60 minutes',
+            tags: ['cooperative', 'text-adventure', 'roleplay', 'medieval']
+        };
+    }
+
+    // ========================== Additional Game-Specific Methods ==========================
+    
+    /**
+     * Checks if outfit swapping feature is enabled
+     * @returns {boolean} True if outfit swapping is enabled
+     */
+    isOutfitSwappingEnabled() {
+        return true;
+    }
+    
+    /**
+     * Gets all available outfits in the game
+     * @returns {Object} Map of outfit ID to outfit info
+     */
+    getOutfits() {
+        return {
+            'nightgown': {
+                name: OUTFIT_NAMES['nightgown'],
+                type: 'sleepwear',
+                description: 'Легкая ночная рубашка'
+            },
+            'princess_dress': {
+                name: OUTFIT_NAMES['princess_dress'],
+                type: 'noble',
+                description: 'Богатое платье знатной особы'
+            },
+            'common_dress': {
+                name: OUTFIT_NAMES['common_dress'],
+                type: 'common',
+                description: 'Обычная одежда простолюдинки'
+            },
+            'court_dress': {
+                name: OUTFIT_NAMES['court_dress'],
+                type: 'formal',
+                description: 'Торжественное придворное платье'
+            }
+        };
+    }
+    
+    /**
+     * Universal request system methods for backward compatibility
+     */
+    
     isRequestChoice(choiceId) {
         return choiceId === 'request_outfit_swap';
     }
     
-    // Получить тип запроса из выбора
     getRequestTypeFromChoice(choiceId) {
         if (choiceId === 'request_outfit_swap') {
             return 'outfit_swap';
@@ -235,7 +218,6 @@ class PulpulakGameConfig extends GameConfigInterface {
         return null;
     }
     
-    // Проверить, можно ли создать запрос
     canCreateRequest(gameState, requestType, character, requestData) {
         if (requestType === 'outfit_swap') {
             const canRequest = PulpulakOutfitLogic.canRequestOutfitSwap(gameState, character, false);
@@ -248,7 +230,6 @@ class PulpulakGameConfig extends GameConfigInterface {
         return { allowed: false, reason: `Unknown request type: ${requestType}` };
     }
     
-    // Выполнить запрос
     executeRequest(gameState, request, responseData) {
         if (request.type === 'outfit_swap') {
             const updatedGameState = PulpulakOutfitLogic.executeOutfitSwap(gameState);
@@ -265,21 +246,19 @@ class PulpulakGameConfig extends GameConfigInterface {
         };
     }
     
-    // === ОБРАТНАЯ СОВМЕСТИМОСТЬ ===
-    
-    // Создать выбор для обмена одеждой (для обратной совместимости)
-    createOutfitSwapChoice(character) {
-        return PulpulakOutfitLogic.createOutfitSwapChoice(character);
-    }
-
-    // Выполнить обмен одеждой (для обратной совместимости)
+    // Backward compatibility methods
     executeOutfitSwap(gameState) {
         return PulpulakOutfitLogic.executeOutfitSwap(gameState);
     }
 
-    // Проверить, может ли персонаж запросить обмен одеждой (для обратной совместимости)
     canRequestOutfitSwap(gameState, character, hasActiveRequest = false) {
         return PulpulakOutfitLogic.canRequestOutfitSwap(gameState, character, hasActiveRequest);
+    }
+    
+    registerRequestHandlers(requestManager) {
+        if (PulpulakRequestHandlers && typeof PulpulakRequestHandlers.registerHandlers === 'function') {
+            PulpulakRequestHandlers.registerHandlers(requestManager);
+        }
     }
 }
 

@@ -1,12 +1,15 @@
 const CoopGameLogic = require('../coopGameLogic');
 const { refreshGameState } = require('./testHelpers');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('Independent Dialogues System', () => {
     let gameLogic;
+    let gameConfig;
     let roomId;
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         
         const players = {
             princess: { id: 'alice', name: 'Alice' },

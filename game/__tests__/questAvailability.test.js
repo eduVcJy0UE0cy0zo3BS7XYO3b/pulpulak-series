@@ -1,13 +1,16 @@
 const CoopGameLogic = require('../coopGameLogic');
 const { refreshGameState } = require('./testHelpers');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('Quest Availability After Dialogue', () => {
     let gameLogic;
+    let gameConfig;
     let roomId;
     let gameState;
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         
         const players = {
             princess: { id: 'alice', name: 'Alice' },

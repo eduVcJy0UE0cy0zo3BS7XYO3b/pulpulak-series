@@ -1,9 +1,11 @@
 const CoopGameLogic = require('../coopGameLogic');
 const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
 const { wait } = require('./testUtils');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('Game Integration Tests', () => {
     let gameLogic;
+    let gameConfig;
     const roomId = 'TEST_ROOM';
     const players = {
         princess: { id: 'alice', name: 'Алиса' },
@@ -11,7 +13,8 @@ describe('Game Integration Tests', () => {
     };
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
     });
 
     describe('Полный игровой сценарий', () => {

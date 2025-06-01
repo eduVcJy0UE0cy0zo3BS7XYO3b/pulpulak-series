@@ -1,9 +1,11 @@
 const CoopGameLogic = require('../coopGameLogic');
 const NPCData = require('../../games/pulpulak/data/npcData');
 const { refreshGameState } = require('./testHelpers');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('NPC Interactions', () => {
     let gameLogic;
+    let gameConfig;
     const roomId = 'TEST_NPC';
     const players = {
         princess: { id: 'alice', name: 'Алиса' },
@@ -11,7 +13,8 @@ describe('NPC Interactions', () => {
     };
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         gameLogic.startGame(roomId, players);
     });
 

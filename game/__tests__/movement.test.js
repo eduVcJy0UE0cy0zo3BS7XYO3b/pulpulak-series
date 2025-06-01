@@ -1,8 +1,10 @@
 const CoopGameLogic = require('../coopGameLogic');
 const LocationData = require('../../games/pulpulak/data/locationData');
+const MockGameConfig = require('./mocks/MockGameConfig');
 
 describe('Movement System', () => {
     let gameLogic;
+    let gameConfig;
     const roomId = 'TEST_ROOM';
     const players = {
         princess: { id: 'alice', name: 'Алиса' },
@@ -10,7 +12,8 @@ describe('Movement System', () => {
     };
 
     beforeEach(() => {
-        gameLogic = new CoopGameLogic();
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         gameLogic.startGame(roomId, players);
     });
 

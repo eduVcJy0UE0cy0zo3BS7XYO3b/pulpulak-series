@@ -3,12 +3,12 @@
  * Отвечает за состояние персонажей, их местоположение, инвентарь и статистику
  */
 
-const NPCData = require('../../games/pulpulak/data/npcData');
 const ImmerStateManager = require('../stateManager');
 
 class PlayerDataManager {
     constructor(gameDataManager) {
         this.gameData = gameDataManager;
+        this.npcData = gameDataManager.gameConfig.getNPCData();
         this.immerStateManager = new ImmerStateManager();
     }
 
@@ -54,13 +54,18 @@ class PlayerDataManager {
     swapOutfits(roomId) {
         const gameState = this.gameData.getGame(roomId);
         if (gameState) {
-            const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
-                const tempOutfit = draft.stats.princess.outfit;
-                draft.stats.princess.outfit = draft.stats.helper.outfit;
-                draft.stats.helper.outfit = tempOutfit;
-            });
-            // Заменяем объект в GameDataManager
-            this.gameData.games.set(roomId, updatedGameState);
+            const characters = this.gameData.gameConfig.getCharacters();
+            if (characters.length >= 2) {
+                const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
+                    const char1 = characters[0];
+                    const char2 = characters[1];
+                    const tempOutfit = draft.stats[char1].outfit;
+                    draft.stats[char1].outfit = draft.stats[char2].outfit;
+                    draft.stats[char2].outfit = tempOutfit;
+                });
+                // Заменяем объект в GameDataManager
+                this.gameData.games.set(roomId, updatedGameState);
+            }
         }
     }
 
@@ -130,7 +135,13 @@ class PlayerDataManager {
         const gameState = this.gameData.getGame(roomId);
         if (!gameState) return false;
         
-        return gameState.stats.princess.location === gameState.stats.helper.location;
+        const characters = this.gameData.gameConfig.getCharacters();
+        if (characters.length < 2) return false;
+        
+        const char1Location = gameState.stats[characters[0]]?.location;
+        const char2Location = gameState.stats[characters[1]]?.location;
+        
+        return char1Location && char2Location && char1Location === char2Location;
     }
 
     /**
@@ -147,14 +158,15 @@ class PlayerDataManager {
      * Проверить, нет ли NPC рядом с обоими персонажами
      */
     bothPlayersHaveNoNPCs(roomId) {
-        return !this.hasNPCsNearby(roomId, 'princess') && !this.hasNPCsNearby(roomId, 'helper');
+        const characters = this.gameData.gameConfig.getCharacters();
+        return characters.every(character => !this.hasNPCsNearby(roomId, character));
     }
 
     /**
      * Получить список NPC для локации
      */
     getNPCsForLocation(location, gameState, character) {
-        const npcs = NPCData.getNPCsForLocation(location, gameState, character);
+        const npcs = this.npcData.getNPCsForLocation(location, gameState, character);
         return npcs.map(npc => npc.name);
     }
 
@@ -179,20 +191,18 @@ class PlayerDataManager {
         const gameState = this.gameData.getGame(roomId);
         if (!gameState) return;
 
+        const characters = this.gameData.gameConfig.getCharacters();
+
         const updatedGameState = this.immerStateManager.updateState(gameState, draft => {
-            // Обновляем NPC для княжны
-            draft.stats.princess.npcsPresent = this.getNPCsForLocation(
-                draft.stats.princess.location, 
-                gameState, 
-                'princess'
-            );
-            
-            // Обновляем NPC для помощницы
-            draft.stats.helper.npcsPresent = this.getNPCsForLocation(
-                draft.stats.helper.location, 
-                gameState, 
-                'helper'
-            );
+            characters.forEach(character => {
+                if (draft.stats[character]) {
+                    draft.stats[character].npcsPresent = this.getNPCsForLocation(
+                        draft.stats[character].location, 
+                        gameState, 
+                        character
+                    );
+                }
+            });
         });
         
         this.gameData.games.set(roomId, updatedGameState);
@@ -256,10 +266,14 @@ class PlayerDataManager {
         const gameState = this.gameData.getGame(roomId);
         if (!gameState) return null;
         
-        return {
-            princess: this.getPlayerStats(roomId, 'princess'),
-            helper: this.getPlayerStats(roomId, 'helper')
-        };
+        const characters = this.gameData.gameConfig.getCharacters();
+        const stats = {};
+        
+        characters.forEach(character => {
+            stats[character] = this.getPlayerStats(roomId, character);
+        });
+        
+        return stats;
     }
 }
 

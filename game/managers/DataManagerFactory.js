@@ -9,67 +9,45 @@ const QuestDataManager = require('./QuestDataManager');
 const RequestManager = require('./RequestManager');
 
 class DataManagerFactory {
-    constructor() {
-        this.managers = null;
-    }
-
     /**
-     * Создать и настроить всех менеджеров
+     * Create and configure all managers with game configuration
+     * @param {IGameConfig} gameConfig - Game configuration implementing IGameConfig interface
      */
-    createManagers() {
-        if (this.managers) {
-            return this.managers;
+    static getManagers(gameConfig) {
+        if (!gameConfig) {
+            throw new Error('GameConfig is required');
         }
 
-        // Создаём базовый менеджер игровых данных
-        const gameDataManager = new GameDataManager();
+        // Create base game data manager with config
+        const gameDataManager = new GameDataManager(gameConfig);
         
-        // Создаём зависимые менеджеры
+        // Create dependent managers
         const playerDataManager = new PlayerDataManager(gameDataManager);
         const questDataManager = new QuestDataManager(gameDataManager);
         const requestManager = new RequestManager(gameDataManager, playerDataManager);
 
-        // Регистрируем игровые обработчики запросов
-        this.registerGameRequestHandlers(requestManager);
+        // Register game-specific request handlers from gameConfig
+        const requestHandlers = gameConfig.getRequestHandlers();
+        if (requestHandlers && typeof requestHandlers.registerHandlers === 'function') {
+            requestHandlers.registerHandlers(requestManager);
+        }
 
-        this.managers = {
+        return {
             gameData: gameDataManager,
             playerData: playerDataManager,
             questData: questDataManager,
             requestData: requestManager
         };
-
-        return this.managers;
     }
 
     /**
-     * Получить менеджеров (создать если не существуют)
+     * Reset managers for testing purposes
+     * Since we're now stateless, this is just a placeholder for backward compatibility
      */
-    getManagers() {
-        return this.managers || this.createManagers();
-    }
-
-    /**
-     * Зарегистрировать обработчики запросов для игр
-     */
-    registerGameRequestHandlers(requestManager) {
-        try {
-            // Регистрируем обработчики для игры Pulpulak
-            const PulpulakRequestHandlers = require('../../games/pulpulak/requestHandlers');
-            PulpulakRequestHandlers.registerHandlers(requestManager);
-            console.log('✅ Зарегистрированы обработчики запросов для Pulpulak');
-        } catch (error) {
-            console.warn('⚠️ Не удалось зарегистрировать обработчики запросов Pulpulak:', error.message);
-        }
-    }
-
-    /**
-     * Сбросить всех менеджеров (для тестов)
-     */
-    resetManagers() {
-        this.managers = null;
+    static resetManagers() {
+        // This method exists for backward compatibility with tests
+        // In the new architecture, managers are stateless and created on demand
     }
 }
 
-// Экспортируем синглтон
-module.exports = new DataManagerFactory();
+module.exports = DataManagerFactory;

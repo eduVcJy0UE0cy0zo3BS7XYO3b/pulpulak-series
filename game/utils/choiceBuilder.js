@@ -3,8 +3,6 @@
  * Handles building different types of choices for characters
  */
 
-const { CHARACTER_NAMES } = require('../../games/pulpulak/data/constants');
-
 class ChoiceBuilder {
     /**
      * Build scene data for client
@@ -17,49 +15,66 @@ class ChoiceBuilder {
     }
 
     /**
-     * Build choices data for both characters
+     * Build choices data for all characters
      */
-    static buildChoicesData(gameState, sceneData, getChoicesForCharacterFn) {
-        return {
-            princess: getChoicesForCharacterFn(gameState, 'princess', sceneData),
-            helper: getChoicesForCharacterFn(gameState, 'helper', sceneData)
-        };
+    static buildChoicesData(gameState, sceneData, getChoicesForCharacterFn, gameConfig) {
+        const choices = {};
+        const characters = gameConfig ? gameConfig.getCharacters() : ['princess', 'helper'];
+        
+        characters.forEach(character => {
+            choices[character] = getChoicesForCharacterFn(gameState, character, sceneData);
+        });
+        
+        return choices;
     }
 
     /**
-     * Build locations data for both characters
+     * Build locations data for all characters
      */
-    static buildLocationsData(gameState, LocationData) {
-        return {
-            princess: LocationData.getLocationInfo(gameState.stats.princess.location),
-            helper: LocationData.getLocationInfo(gameState.stats.helper.location)
-        };
-    }
-
-    /**
-     * Build dialogues data for both characters
-     */
-    static buildDialoguesData(gameState) {
-        return {
-            princess: gameState.npcDialogues?.princess || null,
-            helper: gameState.npcDialogues?.helper || null
-        };
-    }
-
-    /**
-     * Build quests data for both characters
-     */
-    static buildQuestsData(gameState) {
-        return {
-            princess: {
-                active: gameState.quests.princess.active,
-                completed: gameState.quests.princess.completed.length
-            },
-            helper: {
-                active: gameState.quests.helper.active,
-                completed: gameState.quests.helper.completed.length
+    static buildLocationsData(gameState, LocationData, gameConfig) {
+        const locations = {};
+        const characters = gameConfig ? gameConfig.getCharacters() : ['princess', 'helper'];
+        
+        characters.forEach(character => {
+            if (gameState.stats[character]) {
+                locations[character] = LocationData.getLocationInfo(gameState.stats[character].location);
             }
-        };
+        });
+        
+        return locations;
+    }
+
+    /**
+     * Build dialogues data for all characters
+     */
+    static buildDialoguesData(gameState, gameConfig) {
+        const dialogues = {};
+        const characters = gameConfig ? gameConfig.getCharacters() : ['princess', 'helper'];
+        
+        characters.forEach(character => {
+            dialogues[character] = gameState.npcDialogues && gameState.npcDialogues[character] ? gameState.npcDialogues[character] : null;
+        });
+        
+        return dialogues;
+    }
+
+    /**
+     * Build quests data for all characters
+     */
+    static buildQuestsData(gameState, gameConfig) {
+        const quests = {};
+        const characters = gameConfig ? gameConfig.getCharacters() : ['princess', 'helper'];
+        
+        characters.forEach(character => {
+            if (gameState.quests && gameState.quests[character]) {
+                quests[character] = {
+                    active: gameState.quests[character].active,
+                    completed: gameState.quests[character].completed ? gameState.quests[character].completed.length : 0
+                };
+            }
+        });
+        
+        return quests;
     }
 
     /**
@@ -163,8 +178,12 @@ class ChoiceBuilder {
     /**
      * Get character name
      */
-    static getCharacterName(character) {
-        return CHARACTER_NAMES[character] || character;
+    static getCharacterName(character, gameConfig) {
+        if (gameConfig) {
+            const characterNames = gameConfig.getCharacterNames();
+            return characterNames[character] || character;
+        }
+        return character;
     }
 }
 

@@ -1,9 +1,3 @@
-const CoopStoryData = require('../games/pulpulak/data/coopStoryData');
-const LocationData = require('../games/pulpulak/data/locationData');
-const NPCData = require('../games/pulpulak/data/npcData');
-const QuestData = require('../games/pulpulak/data/questData');
-const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('../games/pulpulak/data/constants');
-const { processQuestAction } = require('../games/pulpulak/data/questActionHandlers');
 const GameStateManager = require('./gameStateManager');
 const ImmerStateManager = require('./stateManager');
 const dataManagerFactory = require('./managers/DataManagerFactory');
@@ -17,33 +11,51 @@ const ChoiceProcessor = require('./utils/choiceProcessor');
 const RequestProcessor = require('./utils/requestProcessor');
 
 class CoopGameLogic {
-    constructor() {
-        // Получаем менеджеров данных
-        const managers = dataManagerFactory.getManagers();
+    constructor(gameConfig) {
+        if (!gameConfig || typeof gameConfig.getStoryData !== 'function') {
+            throw new Error('GameConfig must implement IGameConfig interface');
+        }
+        
+        this.gameConfig = gameConfig;
+        
+        // Get all data through gameConfig
+        this.storyData = gameConfig.getStoryData();
+        this.locationData = gameConfig.getLocationData();
+        this.npcData = gameConfig.getNPCData();
+        this.questData = gameConfig.getQuestData();
+        this.constants = gameConfig.getGameConstants();
+        
+        // Data managers now receive gameConfig
+        const managers = dataManagerFactory.getManagers(gameConfig);
         this.gameData = managers.gameData;
         this.playerData = managers.playerData;
-        this.questData = managers.questData;
+        this.questDataManager = managers.questData;
         this.requestData = managers.requestData;
         
-        // Оставляем для обратной совместимости
+        // Register request handlers
+        const requestHandlers = gameConfig.getRequestHandlers();
+        if (requestHandlers && typeof requestHandlers.registerHandlers === 'function') {
+            requestHandlers.registerHandlers(this.requestData);
+        }
+        
         this.stateManager = new GameStateManager();
         this.immerStateManager = new ImmerStateManager();
     }
 
-    // Запуск игры
+    // Game startup
     startGame(roomId, players) {
         try {
             this.validateGameStartParameters(roomId, players);
             
-            // Создаём игру через GameDataManager
+            // Create game through GameDataManager
             const gameState = this.gameData.createGame(roomId, players);
             
             this.initializeNPCs(gameState);
             
             return this.getGameData(roomId);
         } catch (error) {
-            console.error('Ошибка при запуске игры:', error);
-            throw new Error(`Не удалось запустить игру: ${error.message}`);
+            console.error('Error starting game:', error);
+            throw new Error(`Failed to start game: ${error.message}`);
         }
     }
 
@@ -55,38 +67,37 @@ class CoopGameLogic {
         try {
             this.playerData.updateAllNPCsPresent(gameState.roomId);
         } catch (npcError) {
-            console.error('Ошибка при инициализации NPC:', npcError);
-            // В случае ошибки оставляем пустые массивы NPC
+            console.error('Error initializing NPCs:', npcError);
+            // In case of error, leave empty NPC arrays
         }
     }
 
-    // Создать запрос на обмен одеждой (через универсальную систему)
+    // Create outfit swap request (through universal system)
     createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter) {
         return RequestProcessor.createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter, this.requestData);
     }
 
-    // Ответить на запрос обмена одеждой (через универсальную систему)
+    // Respond to outfit swap request (through universal system)
     respondToOutfitSwapRequest(roomId, playerId, accepted) {
         return RequestProcessor.respondToOutfitSwapRequest(roomId, playerId, accepted, this.requestData);
     }
 
-    // Создать запрос любого типа
+    // Create request of any type
     createRequest(roomId, requestType, fromPlayerId, fromCharacter, requestData = {}) {
         return RequestProcessor.createRequest(roomId, requestType, fromPlayerId, fromCharacter, this.requestData, requestData);
     }
 
-    // Ответить на запрос любого типа
+    // Respond to request of any type
     respondToRequest(roomId, playerId, accepted, responseData = {}) {
         return RequestProcessor.respondToRequest(roomId, playerId, accepted, this.requestData, responseData);
     }
 
-    // Проверить, можно ли переодеваться (делегируется игре)
+    // Check if outfit switching is allowed (delegated to game)
     canSwitchOutfits(gameState, character) {
-        return RequestProcessor.canSwitchOutfits(gameState, character);
+        return this.gameConfig.canSwitchOutfits(gameState, character);
     }
 
-
-    // Получить выборы для персонажа
+    // Get choices for character
     getChoicesForCharacter(gameState, character, sceneData) {
         const choices = this.getSceneChoices(gameState, character, sceneData);
         const specialChoices = this.getSpecialChoices(gameState, character);
@@ -99,15 +110,9 @@ class CoopGameLogic {
     }
 
     getSpecialChoices(gameState, character) {
-        // Получаем динамические выборы из игровой конфигурации
-        const PulpulakGameConfig = require('../games/pulpulak/PulpulakGameConfig');
-        const gameConfig = new PulpulakGameConfig();
-        
+        // Get dynamic choices from game configuration
         const getDynamicChoices = (gameState, character) => {
-            if (typeof gameConfig.getDynamicChoices === 'function') {
-                return gameConfig.getDynamicChoices(gameState, character);
-            }
-            return [];
+            return this.gameConfig.getDynamicChoices(gameState, character);
         };
         
         return ChoiceBuilder.getSpecialChoices(
@@ -120,21 +125,10 @@ class CoopGameLogic {
     }
 
     createOutfitSwapChoice(character) {
-        // Делегируем создание выбора в конкретную игру через GameConfig
-        const PulpulakGameConfig = require('../games/pulpulak/PulpulakGameConfig');
-        const gameConfig = new PulpulakGameConfig();
-        
-        const gameConfigCreateFn = (character) => {
-            if (typeof gameConfig.createOutfitSwapChoice === 'function') {
-                return gameConfig.createOutfitSwapChoice(character);
-            }
-            return null;
-        };
-        
-        return ChoiceBuilder.createOutfitSwapChoice(character, gameConfigCreateFn);
+        return this.gameConfig.createOutfitSwapChoice(character);
     }
 
-    // Обработка обычных выборов (НЕ запросов одежды)
+    // Process regular choices (NOT outfit requests)
     makeChoice(roomId, playerId, choiceId, character) {
         const validators = {
             validateGameState: this.validateGameState.bind(this),
@@ -158,10 +152,10 @@ class CoopGameLogic {
         return ValidationHelpers.validateTurn(gameState, character, choiceId);
     }
 
-    // Общие методы валидации
+    // General validation methods
     validateGameState(roomId) {
         const gameState = this.gameData.getGame(roomId);
-        return gameState ? { valid: true, gameState } : { valid: false, error: 'Игра не найдена' };
+        return gameState ? { valid: true, gameState } : { valid: false, error: 'Game not found' };
     }
 
     validatePlayer(gameState, playerId, character) {
@@ -183,33 +177,33 @@ class CoopGameLogic {
             choiceId, 
             character, 
             processors, 
-            CoopStoryData, 
+            this.storyData, 
             this, 
             this.requestData
         );
     }
 
-    // Получить активный запрос для комнаты
+    // Get active request for room
     getActiveOutfitRequest(roomId) {
         return RequestProcessor.getActiveOutfitRequest(roomId, this.requestData);
     }
 
-    // Получить активный запрос любого типа
+    // Get active request of any type
     getActiveRequest(roomId) {
         return RequestProcessor.getActiveRequest(roomId, this.requestData);
     }
 
-    // Отменить запрос 
+    // Cancel request 
     cancelOutfitRequest(roomId) {
         RequestProcessor.cancelOutfitRequest(roomId, this.requestData);
     }
 
-    // Отменить запрос любого типа
+    // Cancel request of any type
     cancelRequest(roomId) {
         return RequestProcessor.cancelRequest(roomId, this.requestData);
     }
 
-    // Применить эффекты выбора
+    // Apply choice effects
     applyEffects(gameState, effects, character) {
         return EffectsProcessor.applyEffects(
             this.immerStateManager, 
@@ -220,22 +214,22 @@ class CoopGameLogic {
         );
     }
 
-    // Проверить доступность выбора
+    // Check choice availability
     isChoiceAvailable(choice, gameState, character) {
         return ChoiceProcessor.isChoiceAvailable(choice, gameState, character);
     }
 
-    // Сменить очередь хода
+    // Switch turn order
     switchTurn(gameState) {
         return ChoiceProcessor.switchTurn(gameState, this.immerStateManager);
     }
 
-    // Получить данные игры
+    // Get game data
     getGameData(roomId) {
         const gameState = this.gameData.getGame(roomId);
         if (!gameState) return null;
 
-        const sceneData = CoopStoryData.getScene(gameState.currentScene);
+        const sceneData = this.storyData.getScene(gameState.currentScene);
         const choicesForCharacters = this.buildChoicesData(gameState, sceneData);
         const activeRequest = this.getActiveRequest(roomId);
         
@@ -247,43 +241,44 @@ class CoopGameLogic {
     }
 
     buildChoicesData(gameState, sceneData) {
-        return ChoiceBuilder.buildChoicesData(gameState, sceneData, this.getChoicesForCharacter.bind(this));
+        return ChoiceBuilder.buildChoicesData(gameState, sceneData, this.getChoicesForCharacter.bind(this), this.gameConfig);
     }
 
     buildLocationsData(gameState) {
-        return ChoiceBuilder.buildLocationsData(gameState, LocationData);
+        return ChoiceBuilder.buildLocationsData(gameState, this.locationData, this.gameConfig);
     }
 
     buildDialoguesData(gameState) {
-        return ChoiceBuilder.buildDialoguesData(gameState);
+        return ChoiceBuilder.buildDialoguesData(gameState, this.gameConfig);
     }
 
     buildQuestsData(gameState) {
-        return ChoiceBuilder.buildQuestsData(gameState);
+        return ChoiceBuilder.buildQuestsData(gameState, this.gameConfig);
     }
 
-    // Вспомогательные методы
+    // Helper methods
     generateRequestId() {
         return ValidationHelpers.generateRequestId();
     }
 
     getCharacterName(character) {
-        return ChoiceBuilder.getCharacterName(character);
+        return ChoiceBuilder.getCharacterName(character, this.gameConfig);
     }
 
     getOutfitName(outfitId) {
-        return OUTFIT_NAMES[outfitId] || outfitId;
+        const constants = this.gameConfig.getGameConstants();
+        return constants.OUTFIT_NAMES[outfitId] || outfitId;
     }
 
     getNPCsForLocation(location, gameState = null, character = null) {
-        // Получаем NPC из NPCData с учётом состояния игры
-        const npcs = NPCData.getNPCsForLocation(location, gameState, character);
-        // Возвращаем только имена для обратной совместимости
+        // Get NPCs from NPCData with game state consideration
+        const npcs = this.npcData.getNPCsForLocation(location, gameState, character);
+        // Return only names for backward compatibility
         return npcs.map(npc => npc.name);
     }
 
     getMovementChoices(gameState, character) {
-        return ChoiceBuilder.getMovementChoices(gameState, character, LocationData);
+        return ChoiceBuilder.getMovementChoices(gameState, character, this.locationData);
     }
 
     processMovement(gameState, targetLocation, character) {
@@ -291,7 +286,7 @@ class CoopGameLogic {
             gameState, 
             targetLocation, 
             character, 
-            LocationData, 
+            this.locationData, 
             this.requestData, 
             this.playerData, 
             this.gameData
@@ -303,31 +298,31 @@ class CoopGameLogic {
         this.requestData.clearRoomRequests(roomId);
     }
 
-    // Получить выборы взаимодействия с NPC
+    // Get NPC interaction choices
     getNPCInteractionChoices(gameState, character) {
-        return ChoiceBuilder.getNPCInteractionChoices(gameState, character, NPCData);
+        return ChoiceBuilder.getNPCInteractionChoices(gameState, character, this.npcData);
     }
 
-    // Обработка взаимодействия с NPC
+    // Process NPC interaction
     processNPCInteraction(gameState, npcId, character) {
         return NPCDialogueProcessor.processNPCInteraction(
             gameState, 
             npcId, 
             character, 
-            NPCData, 
+            this.npcData, 
             this.immerStateManager, 
             this.gameData
         );
     }
 
-    // Обработка выбора в диалоге с NPC
+    // Process NPC dialogue choice
     processNPCDialogueChoice(roomId, playerId, choiceId, character) {
         return NPCDialogueProcessor.processNPCDialogueChoice(
             roomId, 
             playerId, 
             choiceId, 
             character, 
-            NPCData, 
+            this.npcData, 
             this.immerStateManager, 
             this.gameData, 
             EffectsProcessor, 
@@ -337,7 +332,7 @@ class CoopGameLogic {
         );
     }
 
-    // Закрытие диалога с NPC
+    // Close NPC dialogue
     closeNPCDialogue(roomId, playerId) {
         return NPCDialogueProcessor.closeNPCDialogue(
             roomId, 
@@ -347,21 +342,21 @@ class CoopGameLogic {
         );
     }
 
-    // === СИСТЕМА КВЕСТОВ ===
+    // === QUEST SYSTEM ===
 
-    // Начать квест
+    // Start quest
     startQuest(gameState, character, questId) {
         return QuestProcessor.startQuest(
             gameState, 
             character, 
             questId, 
-            QuestData, 
+            this.questData, 
             EffectsProcessor, 
             this
         );
     }
 
-    // Обновить прогресс квеста
+    // Update quest progress
     updateQuestProgress(gameState, character, stepId) {
         return QuestProcessor.updateQuestProgress(
             gameState, 
@@ -373,7 +368,7 @@ class CoopGameLogic {
         );
     }
 
-    // Завершить квест
+    // Complete quest
     completeQuest(gameState, character) {
         return QuestProcessor.completeQuest(
             gameState, 
@@ -383,40 +378,50 @@ class CoopGameLogic {
         );
     }
 
-    // Получить текущий квест персонажа
+    // Get current character quest
     getCurrentQuest(gameState, character) {
         return QuestProcessor.getCurrentQuest(gameState, character);
     }
 
-    // Получить текущий шаг квеста
+    // Get current quest step
     getCurrentQuestStep(gameState, character) {
         return QuestProcessor.getCurrentQuestStep(gameState, character);
     }
 
-    // Проверить, может ли персонаж начать квест
+    // Check if character can start quest
     canStartQuest(gameState, character, questId) {
-        return QuestProcessor.canStartQuest(gameState, character, questId, QuestData);
+        return QuestProcessor.canStartQuest(gameState, character, questId, this.questData);
     }
 
-    // Обработать квестовое действие из диалога
+    // Process quest action from dialogue
     processQuestAction(gameState, character, choiceId, dialogueResult) {
+        // Quest action processing needs to be delegated to game-specific logic
+        const questActionHandlers = this.gameConfig.getQuestActionHandlers ? this.gameConfig.getQuestActionHandlers() : null;
+        
+        // Create a function that calls the quest action handlers module
+        const questActionFn = questActionHandlers && questActionHandlers.processQuestAction
+            ? (gameState, character, choiceId, dialogueResult) => {
+                return questActionHandlers.processQuestAction(gameState, character, choiceId, dialogueResult, this);
+            }
+            : null;
+        
         return QuestProcessor.processQuestAction(
             gameState, 
             character, 
             choiceId, 
             dialogueResult, 
-            processQuestAction.bind(null, gameState, character, choiceId, dialogueResult, this)
+            questActionFn
         );
     }
 
-    // === МЕТОДЫ ДЛЯ ТЕСТИРОВАНИЯ (обратная совместимость) ===
+    // === TESTING METHODS (backward compatibility) ===
     
-    // Имитация старого gameLogic.games для тестов
+    // Simulate old gameLogic.games for tests
     get games() {
         return {
             get: (roomId) => this.gameData.getGame(roomId),
             set: (roomId, gameState) => {
-                // Для обратной совместимости - просто заменяем объект в Map
+                // For backward compatibility - just replace object in Map
                 this.gameData.games.set(roomId, gameState);
             },
             has: (roomId) => this.gameData.hasGame(roomId),
@@ -424,7 +429,7 @@ class CoopGameLogic {
         };
     }
 
-    // Имитация старого gameLogic.outfitRequests для тестов
+    // Simulate old gameLogic.outfitRequests for tests
     get outfitRequests() {
         return {
             get: (roomId) => this.requestData.getActiveRequest(roomId),

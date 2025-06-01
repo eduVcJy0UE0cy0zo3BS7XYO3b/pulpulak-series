@@ -3,11 +3,14 @@
  * Отвечает за создание, хранение и получение игровых данных
  */
 
-const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
-const LocationData = require('../../games/pulpulak/data/locationData');
-
 class GameDataManager {
-    constructor() {
+    constructor(gameConfig) {
+        if (!gameConfig) {
+            throw new Error('GameConfig is required');
+        }
+        this.gameConfig = gameConfig;
+        this.storyData = gameConfig.getStoryData();
+        this.locationData = gameConfig.getLocationData();
         this.games = new Map(); // roomId -> gameData
     }
 
@@ -52,7 +55,33 @@ class GameDataManager {
         const gameState = this.getGame(roomId);
         if (!gameState) return null;
 
-        const sceneData = CoopStoryData.getScene(gameState.currentScene);
+        const sceneData = this.storyData.getScene(gameState.currentScene);
+        const characters = this.gameConfig.getCharacters();
+        
+        // Build locations data for all characters dynamically
+        const locations = {};
+        characters.forEach(character => {
+            if (gameState.stats[character]) {
+                locations[character] = this.locationData.getLocationInfo(gameState.stats[character].location);
+            }
+        });
+
+        // Build quests data for all characters dynamically
+        const quests = {};
+        characters.forEach(character => {
+            if (gameState.quests && gameState.quests[character]) {
+                quests[character] = {
+                    active: gameState.quests[character].active,
+                    completed: gameState.quests[character].completed ? gameState.quests[character].completed.length : 0
+                };
+            }
+        });
+
+        // Build NPC dialogues for all characters dynamically
+        const npcDialogues = {};
+        characters.forEach(character => {
+            npcDialogues[character] = gameState.npcDialogues && gameState.npcDialogues[character] ? gameState.npcDialogues[character] : null;
+        });
         
         return {
             roomId: roomId,
@@ -65,27 +94,12 @@ class GameDataManager {
             stats: JSON.parse(JSON.stringify(gameState.stats)),
             currentTurn: gameState.turnOrder,
             chapter: gameState.chapter,
-            locations: {
-                princess: LocationData.getLocationInfo(gameState.stats.princess.location),
-                helper: LocationData.getLocationInfo(gameState.stats.helper.location)
-            },
+            locations: locations,
             activeRequest: activeRequest,
             // Keep legacy field for backward compatibility
             activeOutfitRequest: activeRequest?.type === 'outfit_swap' ? activeRequest : null,
-            npcDialogues: {
-                princess: gameState.npcDialogues?.princess || null,
-                helper: gameState.npcDialogues?.helper || null
-            },
-            quests: {
-                princess: {
-                    active: gameState.quests.princess.active,
-                    completed: gameState.quests.princess.completed.length
-                },
-                helper: {
-                    active: gameState.quests.helper.active,
-                    completed: gameState.quests.helper.completed.length
-                }
-            }
+            npcDialogues: npcDialogues,
+            quests: quests
         };
     }
 

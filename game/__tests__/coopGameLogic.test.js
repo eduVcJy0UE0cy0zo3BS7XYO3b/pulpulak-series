@@ -1,4 +1,5 @@
 const CoopGameLogic = require('../coopGameLogic');
+const MockGameConfig = require('./mocks/MockGameConfig');
 const CoopStoryData = require('../../games/pulpulak/data/coopStoryData');
 
 // Mock для CoopStoryData
@@ -9,6 +10,7 @@ jest.mock('../../games/pulpulak/data/coopStoryData', () => ({
 
 describe('CoopGameLogic', () => {
     let gameLogic;
+    let gameConfig;
     let roomId;
     let players;
 
@@ -17,7 +19,9 @@ describe('CoopGameLogic', () => {
         const dataManagerFactory = require('../managers/DataManagerFactory');
         dataManagerFactory.resetManagers();
         
-        gameLogic = new CoopGameLogic();
+        // Create mock game config
+        gameConfig = new MockGameConfig();
+        gameLogic = new CoopGameLogic(gameConfig);
         roomId = 'TEST123';
         players = {
             princess: { id: 'player1', name: 'Алиса' },

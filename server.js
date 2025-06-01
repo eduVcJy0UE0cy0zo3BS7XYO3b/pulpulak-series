@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const SocketHandler = require('./network/socketHandler');
+const PulpulakGameConfig = require('./games/pulpulak/PulpulakGameConfig');
 
 const app = express();
 const server = http.createServer(app);
@@ -32,8 +33,11 @@ app.get('/test-outfit', (req, res) => {
     res.sendFile(path.join(__dirname, 'test_outfit_button.html'));
 });
 
+// Create game configuration
+const gameConfig = new PulpulakGameConfig();
+
 // Инициализация обработчика сокетов
-const socketHandler = new SocketHandler(io);
+const socketHandler = new SocketHandler(io, gameConfig);
 
 // Обработка ошибок сервера
 process.on('uncaughtException', (error) => {
