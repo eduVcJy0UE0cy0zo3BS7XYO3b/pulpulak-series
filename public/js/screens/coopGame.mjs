@@ -22,7 +22,8 @@ const CoopGame = {
             const response = await fetch('/api/games');
             if (response.ok) {
                 const data = await response.json();
-                this.availableGames = data.games || [];
+                // API returns array directly, not wrapped in {games: [...]}
+                this.availableGames = Array.isArray(data) ? data : (data.games || []);
                 m.redraw();
             }
         } catch (error) {

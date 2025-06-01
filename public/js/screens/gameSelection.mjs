@@ -26,11 +26,15 @@ const GameSelection = {
             }
 
             const data = await response.json();
-            this.availableGames = data.games || [];
+            console.log('🎮 Received games data:', data);
+            // API returns array directly, not wrapped in {games: [...]}
+            this.availableGames = Array.isArray(data) ? data : (data.games || []);
+            console.log('🎮 Available games:', this.availableGames);
             
             // Pre-select first game if available
             if (this.availableGames.length > 0) {
                 this.selectedGame = this.availableGames[0].id;
+                console.log('🎮 Pre-selected game:', this.selectedGame);
             }
             
             this.loading = false;
@@ -83,13 +87,13 @@ const GameSelection = {
         }, [
             m('.game-icon', game.icon || '🎮'),
             m('.game-info', [
-                m('h3', game.name),
-                m('p.game-description', game.description),
+                m('h3', game.name || 'Неизвестная игра'),
+                m('p.game-description', game.description || 'Описание недоступно'),
                 m('.game-meta', [
-                    m('span.game-players', `👥 ${game.minPlayers}-${game.maxPlayers} игроков`),
-                    game.estimatedPlayTime && m('span.game-time', `⏱️ ${game.estimatedPlayTime}`)
+                    m('span.game-players', `👥 ${game.minPlayers || 2}-${game.maxPlayers || 2} игроков`),
+                    (game.estimatedPlayTime || game.estimatedDuration) && m('span.game-time', `⏱️ ${game.estimatedPlayTime || game.estimatedDuration}`)
                 ]),
-                game.tags && m('.game-tags', 
+                (game.tags && game.tags.length > 0) && m('.game-tags', 
                     game.tags.map(tag => m('span.tag', tag))
                 )
             ]),
