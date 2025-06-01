@@ -19,7 +19,9 @@ const Lobby = {
     startGame(vnode) {
         const roomData = this.getRoomData(vnode);
         if (roomData) {
-            this.app.startCoopGame(roomData.roomId);
+            // Support both roomId (legacy) and roomCode (new format)
+            const roomId = roomData.roomId || roomData.roomCode;
+            this.app.startCoopGame(roomId);
         }
     },
 
@@ -107,8 +109,8 @@ const Lobby = {
                 m('#room-info.text-center', [
                     m('p', 'Поделитесь этим кодом с другом:'),
                     m('.room-id-display#room-id-display', {
-                        onclick: () => this.copyRoomId(roomData?.roomId || 'ABCD')
-                    }, roomData?.roomId || 'ABCD')
+                        onclick: () => this.copyRoomId((roomData?.roomId || roomData?.roomCode) || 'ABCD')
+                    }, (roomData?.roomId || roomData?.roomCode) || 'ABCD')
                 ]),
 
                 m('#players-list', [

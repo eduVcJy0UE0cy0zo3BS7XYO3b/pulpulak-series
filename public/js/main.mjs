@@ -66,13 +66,23 @@ class App {
     setupSocketEvents() {
         const socket = this.socketManager.socket;
         
-        // Lobby events
+        // Lobby events - support both old and new event names
         socket.on('room-created', (data) => {
+            console.log('✅ Комната создана (legacy):', data);
+            this.showScreen('lobby', data);
+        });
+
+        socket.on('roomCreated', (data) => {
             console.log('✅ Комната создана:', data);
             this.showScreen('lobby', data);
         });
 
         socket.on('room-joined', (data) => {
+            console.log('✅ Присоединились к комнате (legacy):', data);
+            this.showScreen('lobby', data);
+        });
+
+        socket.on('roomJoined', (data) => {
             console.log('✅ Присоединились к комнате:', data);
             this.showScreen('lobby', data);
         });
@@ -105,8 +115,9 @@ class App {
         });
 
         // Common events
-        socket.on('error', (message) => {
-            console.error('❌ Ошибка сервера:', message);
+        socket.on('error', (error) => {
+            console.error('❌ Ошибка сервера:', error);
+            const message = error.message || error;
             NotificationManager.add(message, 'error', 5000);
         });
 

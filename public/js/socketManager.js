@@ -38,7 +38,8 @@ class SocketManager {
 
     joinRoom(roomId) {
         console.log(`🚪 Присоединение к комнате: ${roomId}`);
-        this.socket.emit('join-room', { roomId, username: this.username });
+        // Support both roomId and roomCode for compatibility
+        this.socket.emit('join-room', { roomId, roomCode: roomId, username: this.username });
     }
 
     startCoopGame(roomId) {
