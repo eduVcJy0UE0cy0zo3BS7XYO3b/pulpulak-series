@@ -154,14 +154,61 @@ class JsonNPCLoader {
         const npc = await this.getNPC(npcId);
         if (!npc) return null;
         
-        // Реализация аналогична оригинальному NPCData.processDialogueChoice
-        // Упрощена для демонстрации
+        const isNobleOutfit = playerOutfit === 'princess_dress' || playerOutfit === 'court_dress';
+        const outfitType = isNobleOutfit ? 'noble' : 'common';
+        
+        let choice;
+        
+        if (isFollowUp && currentChoices.length > 0) {
+            // Ищем выбор в текущих доп. выборах
+            choice = currentChoices.find(c => c.id === choiceId);
+        } else {
+            // Ищем выбор в основном диалоге
+            const dialogueTree = npc.dialogue[outfitType];
+            if (!dialogueTree) return null;
+            
+            // Используем ту же логику что и в getNPCDialogue для определения текущего диалога
+            let currentDialogue;
+            const hasMetBefore = npcMemory[outfitType] && Object.keys(npcMemory[outfitType]).length > 0;
+            
+            // Специальная логика для NPC в особых локациях (приоритет над return диалогом)
+            if (npcId === 'librarian' && currentLocation === 'secret_archive' && dialogueTree.archive) {
+                currentDialogue = dialogueTree.archive;
+            // Специальная логика для травницы в теплице
+            } else if (npcId === 'herbalist' && currentLocation === 'greenhouse' && dialogueTree.greenhouse) {
+                currentDialogue = dialogueTree.greenhouse;
+            } else if (hasMetBefore && dialogueTree.return) {
+                // Проверяем, выполнены ли условия для диалога "return"
+                if (dialogueTree.return.requires) {
+                    const requirementMet = npcMemory[outfitType] && npcMemory[outfitType][dialogueTree.return.requires];
+                    currentDialogue = requirementMet ? dialogueTree.return : dialogueTree.initial;
+                } else {
+                    currentDialogue = dialogueTree.return;
+                }
+            } else {
+                currentDialogue = dialogueTree.initial;
+            }
+            
+            choice = currentDialogue.choices.find(c => c.id === choiceId);
+        }
+        
+        if (!choice) return null;
+        
+        // Инициализируем память для этого типа наряда если её нет
+        if (!npcMemory[outfitType]) {
+            npcMemory[outfitType] = {};
+        }
+        
+        // Сохраняем в память, что был сделан этот выбор
+        if (choice.unlocks) {
+            npcMemory[outfitType][choice.unlocks] = true;
+        }
         
         return {
-            response: "Диалог обработан (JSON версия)",
-            effects: {},
-            next_choices: [],
-            quest_action: null,
+            response: choice.response,
+            effects: choice.effects,
+            next_choices: choice.next_choices || [],
+            quest_action: choice.quest_action,
             updatedMemory: npcMemory
         };
     }

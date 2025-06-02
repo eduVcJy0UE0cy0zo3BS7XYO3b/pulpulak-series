@@ -118,8 +118,12 @@ class EffectsProcessor {
             // Сразу отмечаем квест как взятый в глобальной памяти
             if (quest.id === 'princess_lost_relic') {
                 draft.globalQuestMemory.princess_lost_relic = true;
+                // Also set the dialogue flag for quest availability logic
+                draft.globalQuestMemory.relic_quest_given = true;
             } else if (quest.id === 'helper_secret_potion') {
                 draft.globalQuestMemory.helper_secret_potion = true;
+                // Also set the dialogue flag for quest availability logic
+                draft.globalQuestMemory.herb_quest_given = true;
             }
         });
     }

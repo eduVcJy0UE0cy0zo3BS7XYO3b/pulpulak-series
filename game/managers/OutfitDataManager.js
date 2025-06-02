@@ -4,7 +4,6 @@
  */
 
 const { OUTFIT_NAMES } = require('../../games/pulpulak/data/constants');
-const LocationData = require('../../games/pulpulak/data/locationData');
 
 class OutfitDataManager {
     constructor(gameDataManager, playerDataManager) {
@@ -40,7 +39,6 @@ class OutfitDataManager {
     validateOutfitChange(roomId, character) {
         const validators = [
             () => this.hasNoNPCs(roomId, character),
-            () => this.locationAllowsOutfitChange(roomId, character),
             () => this.playersInSameLocation(roomId),
             () => this.bothPlayersHaveNoNPCs(roomId)
         ];
@@ -55,15 +53,6 @@ class OutfitDataManager {
         return !this.playerData.hasNPCsNearby(roomId, character);
     }
 
-    /**
-     * Проверить, позволяет ли локация сменить одежду
-     */
-    locationAllowsOutfitChange(roomId, character) {
-        const playerData = this.playerData.getPlayerData(roomId, character);
-        if (!playerData) return false;
-        
-        return LocationData.canChangeOutfit(playerData.location);
-    }
 
     /**
      * Проверить, находятся ли игроки в одной локации

@@ -1,4 +1,5 @@
 const IGameConfig = require('../../engine/interfaces/IGameConfig');
+const JsonDataAdapter = require('./adapters/JsonDataAdapter');
 
 // Import constants and logic that remain JS-based
 const { OUTFIT_NAMES, CHARACTER_NAMES, CHARACTER_ROLES } = require('./data/constants');
@@ -6,41 +7,40 @@ const PulpulakRequestHandlers = require('./requestHandlers');
 const PulpulakOutfitLogic = require('./data/outfitLogic');
 const questActionHandlers = require('./data/questActionHandlers');
 
-// Lazy load GameConfigFactory to avoid circular dependencies
-let GameConfigFactory = null;
-
 /**
- * Pulpulak game configuration implementing IGameConfig interface
- * Uses JSON data sources exclusively for game content
+ * Enhanced Pulpulak game configuration using JSON data sources
+ * Maintains full compatibility with IGameConfig interface while using JSON loaders
  */
-class PulpulakGameConfig extends IGameConfig {
+class PulpulakGameConfigJson extends IGameConfig {
     constructor() {
         super();
         this.gameId = 'pulpulak';
         this.gameName = 'Принцесса Пулпулак';
         this.gameVersion = '1.0.0';
+        
+        // JSON data adapter
+        this.jsonAdapter = new JsonDataAdapter();
         this.initialized = false;
-        this.actualConfig = null;
     }
 
+    /**
+     * Initialize JSON data loaders
+     * Must be called before using this config in game logic
+     */
     async initialize() {
-        if (this.initialized) return;
-        
-        // Load JSON-based game configuration
-        if (!GameConfigFactory) {
-            GameConfigFactory = require('./GameConfigFactory');
+        if (this.initialized) {
+            return;
         }
-        this.actualConfig = await GameConfigFactory.createConfig('json');
-        
+
+        await this.jsonAdapter.initialize();
         this.initialized = true;
-        
-        console.log('🎮 Pulpulak configured with JSON data sources');
     }
 
-    _requireInitialized() {
-        if (!this.initialized) {
-            throw new Error('PulpulakGameConfig must be initialized before use. Call await config.initialize()');
-        }
+    /**
+     * Check if config is ready for use
+     */
+    isInitialized() {
+        return this.initialized;
     }
 
     // ========================== Game Metadata ==========================
@@ -58,7 +58,7 @@ class PulpulakGameConfig extends IGameConfig {
                 { id: 'princess', name: 'Княжна', description: 'Главная героиня приключения' },
                 { id: 'helper', name: 'Помощник', description: 'Верный спутник княжны' }
             ],
-            features: ['outfit-system', 'loyalty-tracking', 'cooperative-choices'],
+            features: ['outfit-system', 'loyalty-tracking', 'cooperative-choices', 'json-data'],
             tags: ['cooperative', 'story', 'medieval', 'role-playing']
         };
     }
@@ -77,24 +77,24 @@ class PulpulakGameConfig extends IGameConfig {
 
     // ========================== Data Access Methods ==========================
     
-    getStoryData() { 
+    getStoryData() {
         this._requireInitialized();
-        return this.actualConfig.getStoryData();
+        return this.jsonAdapter.getStoryData();
     }
     
-    getLocationData() { 
+    getLocationData() {
         this._requireInitialized();
-        return this.actualConfig.getLocationData();
+        return this.jsonAdapter.getLocationData();
     }
     
-    getNPCData() { 
+    getNPCData() {
         this._requireInitialized();
-        return this.actualConfig.getNPCData();
+        return this.jsonAdapter.getNPCData();
     }
     
-    getQuestData() { 
+    getQuestData() {
         this._requireInitialized();
-        return this.actualConfig.getQuestData();
+        return this.jsonAdapter.getQuestData();
     }
 
     // ========================== Character Configuration ==========================
@@ -130,82 +130,99 @@ class PulpulakGameConfig extends IGameConfig {
     // ========================== Game Logic Methods ==========================
     
     canSwitchOutfits(gameState, character) { 
-        this._requireInitialized();
-        return this.actualConfig.canSwitchOutfits(gameState, character);
+        return PulpulakOutfitLogic.canSwitchOutfits(gameState, character);
     }
     
     getDynamicChoices(gameState, character) { 
-        this._requireInitialized();
-        return this.actualConfig.getDynamicChoices(gameState, character);
+        const choices = [];
+        
+        // Add outfit swap choice if available
+        if (this.canSwitchOutfits(gameState, character)) {
+            choices.push(this.createOutfitSwapChoice(character));
+        }
+        
+        return choices;
     }
     
     createOutfitSwapChoice(character) { 
-        this._requireInitialized();
-        return this.actualConfig.createOutfitSwapChoice(character);
+        const otherCharacter = character === 'princess' ? 'помощнице' : 'княжне';
+        return {
+            id: 'request_outfit_swap',
+            text: '👗 Предложить поменяться одеждой',
+            description: `Предложить ${otherCharacter} поменяться нарядами`,
+            isOutfitRequest: true
+        };
     }
 
     // ========================== Request Handlers ==========================
     
     getRequestHandlers() { 
-        this._requireInitialized();
-        return this.actualConfig.getRequestHandlers();
+        return PulpulakRequestHandlers;
     }
     
-    /**
-     * Gets quest action handlers for processing quest-related dialogue choices
-     * @returns {Object} Quest action handlers object
-     */
     getQuestActionHandlers() { 
-        this._requireInitialized();
-        return this.actualConfig.getQuestActionHandlers();
+        return questActionHandlers;
     }
 
     // ========================== Validation and Rules ==========================
     
     validateGameRules(gameState) { 
-        this._requireInitialized();
-        return this.actualConfig.validateGameRules(gameState);
+        const errors = [];
+        
+        // Validate characters exist and have required properties
+        const characters = this.getCharacters();
+        characters.forEach(character => {
+            if (!gameState.stats || !gameState.stats[character]) {
+                errors.push(`Missing stats for character: ${character}`);
+            } else {
+                const stats = gameState.stats[character];
+                if (!stats.location) errors.push(`Missing location for ${character}`);
+                if (!stats.outfit) errors.push(`Missing outfit for ${character}`);
+            }
+        });
+        
+        // Validate current scene exists
+        if (!gameState.currentScene) {
+            errors.push('Missing current scene');
+        } else if (!this.getStoryData().getScene(gameState.currentScene)) {
+            errors.push(`Invalid current scene: ${gameState.currentScene}`);
+        }
+        
+        return { 
+            valid: errors.length === 0, 
+            errors 
+        };
     }
     
     getGameConstants() { 
-        this._requireInitialized();
-        return this.actualConfig.getGameConstants();
+        return {
+            OUTFIT_NAMES,
+            CHARACTER_NAMES,
+            CHARACTER_ROLES
+        };
     }
 
     // ========================== Game Metadata ==========================
     
     getGameMetadata() { 
-        if (this.initialized) {
-            return this.actualConfig.getGameMetadata();
-        }
-        
-        // Return basic metadata if not initialized yet (for GameRegistry scanning)
         return {
             id: this.gameId,
             name: this.gameName,
             version: this.gameVersion,
-            description: 'Кооперативная текстовая приключенческая игра о принцессе и её помощнице',
+            description: 'Кооперативная текстовая приключенческая игра о принцессе и её помощнице (JSON версия)',
             minPlayers: 2,
             maxPlayers: 2,
             estimatedPlayTime: '30-60 minutes',
-            tags: ['cooperative', 'text-adventure', 'roleplay', 'medieval']
+            tags: ['cooperative', 'text-adventure', 'roleplay', 'medieval', 'json-powered']
         };
     }
 
     // ========================== Additional Game-Specific Methods ==========================
     
-    /**
-     * Checks if outfit swapping feature is enabled
-     * @returns {boolean} True if outfit swapping is enabled
-     */
     isOutfitSwappingEnabled() {
         return true;
     }
     
-    /**
-     * Gets all available outfits in the game
-     * @returns {Object} Map of outfit ID to outfit info
-     */
     getOutfits() {
         return {
             'nightgown': {
@@ -230,10 +247,8 @@ class PulpulakGameConfig extends IGameConfig {
             }
         };
     }
-    
-    /**
-     * Universal request system methods for backward compatibility
-     */
+
+    // ========================== Request System Methods ==========================
     
     isRequestChoice(choiceId) {
         return choiceId === 'request_outfit_swap';
@@ -273,8 +288,9 @@ class PulpulakGameConfig extends IGameConfig {
             message: `Unknown request type: ${request.type}`
         };
     }
+
+    // ========================== Backward Compatibility ==========================
     
-    // Backward compatibility methods
     executeOutfitSwap(gameState) {
         return PulpulakOutfitLogic.executeOutfitSwap(gameState);
     }
@@ -288,6 +304,23 @@ class PulpulakGameConfig extends IGameConfig {
             PulpulakRequestHandlers.registerHandlers(requestManager);
         }
     }
+
+    // ========================== Helper Methods ==========================
+    
+    _requireInitialized() {
+        if (!this.initialized) {
+            throw new Error('PulpulakGameConfigJson must be initialized before accessing data methods');
+        }
+    }
+
+    /**
+     * Create a factory method for easy instantiation and initialization
+     */
+    static async create() {
+        const config = new PulpulakGameConfigJson();
+        await config.initialize();
+        return config;
+    }
 }
 
-module.exports = PulpulakGameConfig;
+module.exports = PulpulakGameConfigJson;

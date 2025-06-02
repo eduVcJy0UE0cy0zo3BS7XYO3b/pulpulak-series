@@ -3,8 +3,6 @@
  * Все правила и ограничения переодевания специфичные для этой игры
  */
 
-const LocationData = require('./locationData');
-
 class PulpulakOutfitLogic {
     /**
      * Проверить, можно ли переодеваться в данных условиях
@@ -40,7 +38,10 @@ class PulpulakOutfitLogic {
      */
     static locationAllowsOutfitChange(gameState, character) {
         const location = gameState.stats[character].location;
-        return LocationData.canChangeOutfit(location);
+        if (!gameState.gameConfig) return false;
+        
+        const locationData = gameState.gameConfig.getLocationData();
+        return locationData.canChangeOutfit(location);
     }
 
     /**

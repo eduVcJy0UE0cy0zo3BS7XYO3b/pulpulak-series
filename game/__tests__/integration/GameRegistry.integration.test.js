@@ -62,12 +62,17 @@ describe('GameRegistry Integration Tests', () => {
             expect(storyData).toBeTruthy();
             expect(typeof storyData === 'object' || typeof storyData === 'function').toBe(true);
             
-            // Check for essential story elements (Pulpulak returns a class)
+            // Check for essential story elements based on data type
             if (typeof storyData === 'function') {
+                // Legacy JS class-based story data
                 const instance = new storyData();
                 expect(instance).toBeTruthy();
+            } else if (typeof storyData.getScene === 'function') {
+                // JSON-based story data with adapter interface
+                expect(storyData.getScene('coop_awakening')).toBeDefined();
             } else {
-                expect(storyData.prologue || storyData.crime_scene_arrival).toBeDefined();
+                // Direct object-based story data
+                expect(storyData.prologue || storyData.crime_scene_arrival || storyData.coop_awakening).toBeDefined();
             }
         });
 

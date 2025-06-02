@@ -161,6 +161,11 @@ class GameRegistry {
             // Create instance
             const gameConfig = new metadata.GameConfigClass();
             
+            // Initialize if the config supports it (for async data loading)
+            if (typeof gameConfig.initialize === 'function') {
+                await gameConfig.initialize();
+            }
+            
             // Store in cache
             this.games.set(gameId, gameConfig);
             this._updateLastAccess(gameId);

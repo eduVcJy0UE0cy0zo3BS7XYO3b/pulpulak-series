@@ -16,7 +16,7 @@ class ChoiceProcessor {
      * @param {Function} getGameDataFn - Get game data function
      * @returns {Object} Choice processing result
      */
-    static makeChoice(roomId, playerId, choiceId, character, validators, gameData, processChoiceFn, getGameDataFn) {
+    static async makeChoice(roomId, playerId, choiceId, character, validators, gameData, processChoiceFn, getGameDataFn) {
         try {
             const validation = validators.validateGameState(roomId);
             if (!validation.valid) {
@@ -35,7 +35,7 @@ class ChoiceProcessor {
             if (result.success) {
                 return {
                     success: true,
-                    gameData: getGameDataFn(roomId),
+                    gameData: await getGameDataFn(roomId),
                     message: result.message
                 };
             }

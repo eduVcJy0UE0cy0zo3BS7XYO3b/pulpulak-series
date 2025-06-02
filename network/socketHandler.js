@@ -127,7 +127,8 @@ class SocketHandler {
 
                 // Create room with game-specific data
                 const roomId = this.generateRoomId();
-                const CoopGameLogic = require('../game/coopGameLogic');
+                
+                // Create game logic instance for this room
                 const gameLogic = new CoopGameLogic(gameConfig);
                 
                 const roomData = {
@@ -242,7 +243,7 @@ class SocketHandler {
         socket.to(roomId).emit('lobby-update', lobbyData);
     }
 
-    handleStartCoopGame(socket, data) {
+    async handleStartCoopGame(socket, data) {
         try {
             const room = this.rooms.get(data.roomId);
             if (!room || !room.players.princess || !room.players.helper) {
@@ -251,8 +252,16 @@ class SocketHandler {
             }
 
             room.gameState = 'playing';
+            
+            // gameLogic should already exist for multi-game mode, 
+            // but create it if missing for backward compatibility
+            if (!room.gameLogic && room.gameConfig) {
+                const CoopGameLogic = require('../game/coopGameLogic');
+                room.gameLogic = new CoopGameLogic(room.gameConfig);
+            }
+            
             const gameLogic = room.gameLogic || this.gameLogic;
-            const gameData = gameLogic.startGame(data.roomId, room.players);
+            const gameData = await gameLogic.startGame(data.roomId, room.players);
             
             this.io.to(data.roomId).emit('game-started', gameData);
         } catch (error) {
@@ -261,7 +270,7 @@ class SocketHandler {
         }
     }
 
-    handleMakeChoice(socket, data) {
+    async handleMakeChoice(socket, data) {
         try {
             const roomId = this.playerRooms.get(socket.id);
             if (!roomId) {
@@ -276,7 +285,7 @@ class SocketHandler {
             }
 
             const gameLogic = room.gameLogic || this.gameLogic;
-            const result = gameLogic.makeChoice(roomId, socket.id, data.choiceId, data.character);
+            const result = await gameLogic.makeChoice(roomId, socket.id, data.choiceId, data.character);
             
             if (result.success) {
                 this.io.to(roomId).emit('game-update', result.gameData);
@@ -312,7 +321,7 @@ class SocketHandler {
 
 
 
-    handleNPCDialogueChoice(socket, data) {
+    async handleNPCDialogueChoice(socket, data) {
         try {
             const roomId = this.playerRooms.get(socket.id);
             if (!roomId) {
@@ -327,10 +336,10 @@ class SocketHandler {
             }
 
             const gameLogic = room.gameLogic || this.gameLogic;
-            const result = gameLogic.processNPCDialogueChoice(roomId, socket.id, data.choiceId, data.character);
+            const result = await gameLogic.processNPCDialogueChoice(roomId, socket.id, data.choiceId, data.character);
             
             if (result.success) {
-                const updatedGameData = gameLogic.getGameData(roomId);
+                const updatedGameData = await gameLogic.getGameData(roomId);
                 this.io.to(roomId).emit('game-state-updated', updatedGameData);
                 
                 if (result.message) {
@@ -348,7 +357,7 @@ class SocketHandler {
         }
     }
 
-    handleCloseNPCDialogue(socket) {
+    async handleCloseNPCDialogue(socket) {
         try {
             const roomId = this.playerRooms.get(socket.id);
             if (!roomId) {
@@ -361,7 +370,7 @@ class SocketHandler {
             const result = gameLogic.closeNPCDialogue(roomId, socket.id);
             
             if (result.success) {
-                const updatedGameData = gameLogic.getGameData(roomId);
+                const updatedGameData = await gameLogic.getGameData(roomId);
                 this.io.to(roomId).emit('game-state-updated', updatedGameData);
             } else {
                 socket.emit('error', result.message);
@@ -382,7 +391,7 @@ class SocketHandler {
 
     // УНИВЕРСАЛЬНАЯ СИСТЕМА ЗАПРОСОВ
 
-    handleCreateRequest(socket, data) {
+    async handleCreateRequest(socket, data) {
         try {
             const roomId = this.playerRooms.get(socket.id);
             if (!roomId) {
@@ -406,7 +415,7 @@ class SocketHandler {
             );
             
             if (result.success) {
-                const updatedGameData = gameLogic.getGameData(roomId);
+                const updatedGameData = await gameLogic.getGameData(roomId);
                 
                 this.io.to(roomId).emit('request-created', {
                     request: result.request,
@@ -423,7 +432,7 @@ class SocketHandler {
         }
     }
 
-    handleRespondRequest(socket, data) {
+    async handleRespondRequest(socket, data) {
         try {
             const roomId = this.playerRooms.get(socket.id);
             if (!roomId) {
@@ -441,7 +450,7 @@ class SocketHandler {
             );
             
             if (result.success) {
-                const updatedGameData = gameLogic.getGameData(roomId);
+                const updatedGameData = await gameLogic.getGameData(roomId);
                 
                 this.io.to(roomId).emit('request-resolved', {
                     accepted: result.accepted,

@@ -8,7 +8,7 @@ describe('Quest Availability After Dialogue', () => {
     let roomId;
     let gameState;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         gameConfig = new MockGameConfig();
         gameLogic = new CoopGameLogic(gameConfig);
         
@@ -17,7 +17,7 @@ describe('Quest Availability After Dialogue', () => {
             helper: { id: 'bob', name: 'Bob' }
         };
         
-        const gameData = gameLogic.startGame('test-room', players);
+        const gameData = await gameLogic.startGame('test-room', players);
         roomId = gameData.roomId;
         gameState = gameLogic.games.get(roomId);
         
@@ -29,7 +29,7 @@ describe('Quest Availability After Dialogue', () => {
         gameLogic.games.set(roomId, gameState);
     });
 
-    test('должен позволить взять квест на реликвию после разговора о королевстве', () => {
+    test('должен позволить взять квест на реликвию после разговора о королевстве', async () => {
         // 1. Первый разговор - спрашиваем о королевстве
         console.log('1. Первый разговор с советником - спрашиваем о королевстве');
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
@@ -48,7 +48,7 @@ describe('Quest Availability After Dialogue', () => {
         console.log('   ✅ В первый раз доступны оба варианта');
         
         // Выбираем разговор о королевстве
-        let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
+        let result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
@@ -73,7 +73,7 @@ describe('Quest Availability After Dialogue', () => {
         
         // 3. Берём квест на реликвию
         console.log('3. Берём квест на реликвию');
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
@@ -96,13 +96,13 @@ describe('Quest Availability After Dialogue', () => {
         console.log('   ✅ Квест больше не доступен после получения');
     });
 
-    test('должен позволить взять квест на реликвию после любого первого выбора', () => {
+    test('должен позволить взять квест на реликвию после любого первого выбора', async () => {
         // Тестируем с выбором о родителях
         console.log('Тестируем с выбором о родителях');
         
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
-        let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_parents', 'princess');
+        let result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_parents', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
@@ -116,10 +116,10 @@ describe('Quest Availability After Dialogue', () => {
         console.log('   ✅ Квест доступен после разговора о родителях');
     });
 
-    test('библиотекарь должен быть готов говорить о реликвиях независимо', () => {
+    test('библиотекарь должен быть готов говорить о реликвиях независимо', async () => {
         // Сначала говорим с советником о королевстве (не берём квест)
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
-        gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
+        await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_kingdom', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         
         // Идём к библиотекарю через Immer

@@ -15,23 +15,8 @@ const CHARACTER_ROLES = {
     HELPER: 'helper'
 };
 
-const GAME_STATES = {
-    WAITING: 'waiting',
-    PLAYING: 'playing',
-    FINISHED: 'finished'
-};
-
-const OUTFIT_TYPES = {
-    NIGHTGOWN: 'nightgown',
-    PRINCESS_DRESS: 'princess_dress',
-    COMMON_DRESS: 'common_dress',
-    COURT_DRESS: 'court_dress'
-};
-
 module.exports = {
     OUTFIT_NAMES,
     CHARACTER_NAMES,
-    CHARACTER_ROLES,
-    GAME_STATES,
-    OUTFIT_TYPES
+    CHARACTER_ROLES
 };

@@ -17,34 +17,59 @@ class CoopGameLogic {
         }
         
         this.gameConfig = gameConfig;
+        this.initialized = false;
+        
+        // These will be initialized lazily
+        this.storyData = null;
+        this.locationData = null;
+        this.npcData = null;
+        this.questData = null;
+        this.constants = null;
+        this.gameData = null;
+        this.playerData = null;
+        this.questDataManager = null;
+        this.requestData = null;
+        
+        this.stateManager = new GameStateManager();
+        this.immerStateManager = new ImmerStateManager();
+    }
+    
+    async _ensureInitialized() {
+        if (this.initialized) return;
+        
+        // Initialize gameConfig if needed
+        if (typeof this.gameConfig.initialize === 'function') {
+            await this.gameConfig.initialize();
+        }
         
         // Get all data through gameConfig
-        this.storyData = gameConfig.getStoryData();
-        this.locationData = gameConfig.getLocationData();
-        this.npcData = gameConfig.getNPCData();
-        this.questData = gameConfig.getQuestData();
-        this.constants = gameConfig.getGameConstants();
+        this.storyData = this.gameConfig.getStoryData();
+        this.locationData = this.gameConfig.getLocationData();
+        this.npcData = this.gameConfig.getNPCData();
+        this.questData = this.gameConfig.getQuestData();
+        this.constants = this.gameConfig.getGameConstants();
         
         // Data managers now receive gameConfig
-        const managers = dataManagerFactory.getManagers(gameConfig);
+        const managers = dataManagerFactory.getManagers(this.gameConfig);
         this.gameData = managers.gameData;
         this.playerData = managers.playerData;
         this.questDataManager = managers.questData;
         this.requestData = managers.requestData;
         
         // Register request handlers
-        const requestHandlers = gameConfig.getRequestHandlers();
+        const requestHandlers = this.gameConfig.getRequestHandlers();
         if (requestHandlers && typeof requestHandlers.registerHandlers === 'function') {
             requestHandlers.registerHandlers(this.requestData);
         }
         
-        this.stateManager = new GameStateManager();
-        this.immerStateManager = new ImmerStateManager();
+        this.initialized = true;
     }
 
     // Game startup
-    startGame(roomId, players) {
+    async startGame(roomId, players) {
         try {
+            await this._ensureInitialized();
+            
             this.validateGameStartParameters(roomId, players);
             
             // Create game through GameDataManager
@@ -52,7 +77,7 @@ class CoopGameLogic {
             
             this.initializeNPCs(gameState);
             
-            return this.getGameData(roomId);
+            return await this.getGameData(roomId);
         } catch (error) {
             console.error('Error starting game:', error);
             throw new Error(`Failed to start game: ${error.message}`);
@@ -73,12 +98,14 @@ class CoopGameLogic {
     }
 
     // Create outfit swap request (through universal system)
-    createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter) {
+    async createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter) {
+        await this._ensureInitialized();
         return RequestProcessor.createOutfitSwapRequest(roomId, fromPlayerId, fromCharacter, this.requestData);
     }
 
     // Respond to outfit swap request (through universal system)
-    respondToOutfitSwapRequest(roomId, playerId, accepted) {
+    async respondToOutfitSwapRequest(roomId, playerId, accepted) {
+        await this._ensureInitialized();
         return RequestProcessor.respondToOutfitSwapRequest(roomId, playerId, accepted, this.requestData);
     }
 
@@ -129,7 +156,8 @@ class CoopGameLogic {
     }
 
     // Process regular choices (NOT outfit requests)
-    makeChoice(roomId, playerId, choiceId, character) {
+    async makeChoice(roomId, playerId, choiceId, character) {
+        await this._ensureInitialized();
         const validators = {
             validateGameState: this.validateGameState.bind(this),
             validatePlayer: this.validatePlayer.bind(this),
@@ -225,7 +253,8 @@ class CoopGameLogic {
     }
 
     // Get game data
-    getGameData(roomId) {
+    async getGameData(roomId) {
+        await this._ensureInitialized();
         const gameState = this.gameData.getGame(roomId);
         if (!gameState) return null;
 
@@ -294,8 +323,13 @@ class CoopGameLogic {
     }
 
     removeGame(roomId) {
-        this.gameData.deleteGame(roomId);
-        this.requestData.clearRoomRequests(roomId);
+        // Only clean up if gameData is initialized
+        if (this.gameData) {
+            this.gameData.deleteGame(roomId);
+        }
+        if (this.requestData) {
+            this.requestData.clearRoomRequests(roomId);
+        }
     }
 
     // Get NPC interaction choices
@@ -316,8 +350,8 @@ class CoopGameLogic {
     }
 
     // Process NPC dialogue choice
-    processNPCDialogueChoice(roomId, playerId, choiceId, character) {
-        return NPCDialogueProcessor.processNPCDialogueChoice(
+    async processNPCDialogueChoice(roomId, playerId, choiceId, character) {
+        return await NPCDialogueProcessor.processNPCDialogueChoice(
             roomId, 
             playerId, 
             choiceId, 

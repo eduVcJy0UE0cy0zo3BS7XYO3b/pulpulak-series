@@ -23,6 +23,9 @@ class GameDataManager {
         const stateManager = new GameStateManager();
         const gameData = stateManager.createInitialState(roomId, players);
 
+        // Add gameConfig to gameState for outfit logic and other systems that need it
+        gameData.gameConfig = this.gameConfig;
+
         this.games.set(roomId, gameData);
         return gameData;
     }

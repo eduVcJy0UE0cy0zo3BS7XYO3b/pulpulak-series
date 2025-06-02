@@ -38,7 +38,7 @@ class NPCDialogueProcessor {
             const currentLocation = updatedGameState.stats[character].location;
             const questState = updatedGameState.quests[character];
             const globalQuestMemory = updatedGameState.globalQuestMemory;
-            const dialogue = NPCData.getNPCDialogue(npcId, outfit, npcMemory, currentLocation, questState, globalQuestMemory);
+            const dialogue = NPCData.getNPCDialogue(npcId, outfit, npcMemory, currentLocation, questState, globalQuestMemory, updatedGameState);
             if (!dialogue) {
                 return { success: false, message: "Диалог не найден" };
             }
@@ -86,7 +86,7 @@ class NPCDialogueProcessor {
      * @param {Function} getNPCsForLocationFn - Get NPCs for location function
      * @returns {Object} Choice processing result
      */
-    static processNPCDialogueChoice(roomId, playerId, choiceId, character, NPCData, immerStateManager, gameData, EffectsProcessor, processQuestActionFn, switchTurnFn, getNPCsForLocationFn) {
+    static async processNPCDialogueChoice(roomId, playerId, choiceId, character, NPCData, immerStateManager, gameData, EffectsProcessor, processQuestActionFn, switchTurnFn, getNPCsForLocationFn) {
         let gameState = gameData.getGame(roomId);
         if (!gameState) {
             return { success: false, message: "Игра не найдена" };
@@ -118,15 +118,26 @@ class NPCDialogueProcessor {
         // Создаем мутабельную копию памяти NPC для NPCData
         const npcMemoryCopy = JSON.parse(JSON.stringify(gameState.npcMemory[character][npcId]));
         
-        const result = NPCData.processDialogueChoice(
-            npcId, 
-            choiceId, 
-            outfit, 
-            npcMemoryCopy,
-            isFollowUp,
-            currentChoices,
-            gameState.stats[character].location
-        );
+        // Проверяем, это статический метод (JS версия) или метод экземпляра (JSON версия)
+        const result = typeof NPCData.processDialogueChoice === 'function' 
+            ? NPCData.processDialogueChoice(
+                npcId, 
+                choiceId, 
+                outfit, 
+                npcMemoryCopy,
+                isFollowUp,
+                currentChoices,
+                gameState.stats[character].location
+            )
+            : await NPCData.processDialogueChoice(
+                npcId, 
+                choiceId, 
+                outfit, 
+                npcMemoryCopy,
+                isFollowUp,
+                currentChoices,
+                gameState.stats[character].location
+            );
         if (!result) {
             return { success: false, message: "Неверный выбор" };
         }
@@ -145,7 +156,14 @@ class NPCDialogueProcessor {
         // Обрабатываем квестовые действия
         const questResult = processQuestActionFn(gameState, character, choiceId, result);
         if (questResult && questResult.success && questResult.gameState) {
-            gameState = questResult.gameState;
+            // Use Immer to properly merge the quest result state
+            gameState = immerStateManager.updateState(gameState, draft => {
+                const newState = questResult.gameState;
+                // Copy all relevant fields that might have changed
+                if (newState.quests) draft.quests = newState.quests;
+                if (newState.globalQuestMemory) draft.globalQuestMemory = newState.globalQuestMemory;
+                if (newState.stats) draft.stats = newState.stats;
+            });
             gameData.games.set(gameState.roomId, gameState);
         }
 

@@ -1,4 +1,3 @@
-const gameConfig = require('../config/gameConfig');
 const ImmerStateManager = require('./stateManager');
 
 class GameStateManager {
@@ -33,16 +32,23 @@ class GameStateManager {
     }
 
     createInitialStats() {
+        const initialStats = {
+            wealth: 0,
+            awareness: 0,
+            loyalty: {},
+            inventory: []
+        };
+        
         return {
             princess: {
                 outfit: 'princess_dress',
-                ...gameConfig.INITIAL_STATS,
+                ...initialStats,
                 location: 'princess_chamber',
                 npcsPresent: []
             },
             helper: {
                 outfit: 'common_dress',
-                ...gameConfig.INITIAL_STATS,
+                ...initialStats,
                 secrets_revealed: 0,
                 inventory: ['translation_earrings', 'voice_medallion'],
                 location: 'princess_chamber',
@@ -146,7 +152,7 @@ class GameStateManager {
 
         return this.stateManager.updateState(gameState, draft => {
             const inventory = draft.stats[character].inventory;
-            if (inventory.length >= gameConfig.MAX_INVENTORY_SIZE) {
+            if (inventory.length >= 10) { // Default max inventory size
                 throw new Error('Inventory is full');
             }
             inventory.push(item);

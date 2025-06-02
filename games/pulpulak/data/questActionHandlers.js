@@ -8,6 +8,7 @@ const questActionHandlers = {
             const questResult = gameLogic.startQuest(gameState, questCharacter, 'princess_lost_relic');
             if (questResult.success && questResult.gameState) {
                 const progressResult = gameLogic.updateQuestProgress(questResult.gameState, questCharacter, 'get_quest');
+                
                 return {
                     success: true,
                     gameState: progressResult.gameState || questResult.gameState
@@ -26,6 +27,13 @@ const questActionHandlers = {
             const questResult = gameLogic.startQuest(gameState, questCharacter, 'helper_secret_potion');
             if (questResult.success && questResult.gameState) {
                 const progressResult = gameLogic.updateQuestProgress(questResult.gameState, questCharacter, 'get_quest');
+                
+                // Set the dialogue flag that controls choice availability
+                if (progressResult.gameState) {
+                    progressResult.gameState.globalQuestMemory = progressResult.gameState.globalQuestMemory || {};
+                    progressResult.gameState.globalQuestMemory.herb_quest_given = true;
+                }
+                
                 return {
                     success: true,
                     gameState: progressResult.gameState || questResult.gameState
@@ -107,6 +115,13 @@ const questActionHandlers = {
             // Если персонаж в простом наряде, обновляем квест помощницы
             const questCharacter = 'helper';
             const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'talk_to_herbalist');
+            
+            // Set global memory flag for cross-character quest checking
+            if (progressResult.gameState) {
+                progressResult.gameState.globalQuestMemory = progressResult.gameState.globalQuestMemory || {};
+                progressResult.gameState.globalQuestMemory.herbs_collected = true;
+            }
+            
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState

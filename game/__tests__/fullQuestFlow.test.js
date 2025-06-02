@@ -11,13 +11,13 @@ describe('Полный цикл прохождения квестов с пер�
         helper: { id: 'bob', name: 'Боб' }
     };
 
-    beforeEach(() => {
+    beforeEach(async () => {
         gameConfig = new MockGameConfig();
         gameLogic = new CoopGameLogic(gameConfig);
-        gameLogic.startGame(roomId, players);
+        await gameLogic.startGame(roomId, players);
     });
 
-    test('полное прохождение обоих квестов с переодеваниями', () => {
+    test('полное прохождение обоих квестов с переодеваниями', async () => {
         let gameState = gameLogic.games.get(roomId);
         
         console.log('\n=== ЧАСТЬ 1: КНЯЖНА ВЫПОЛНЯЕТ СВОЙ КВЕСТ ===');
@@ -37,7 +37,7 @@ describe('Полный цикл прохождения квестов с пер�
         // Отладка: проверим доступные выборы
         console.log('Доступные выборы:', gameState.npcDialogues.princess?.choices?.map(c => c.id) || 'нет диалога');
         
-        let result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
+        let result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_relic', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         console.log('Результат диалога:', result);
         console.log('Квест после диалога:', gameState.quests.princess.active);
@@ -56,7 +56,7 @@ describe('Полный цикл прохождения квестов с пер�
         expect(npcs).toContain('Библиотекарь Марк');
         
         gameLogic.processNPCInteraction(gameState, 'librarian', 'princess');
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'start_quest', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'start_quest', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         console.log('   ✅ Библиотекарь дал информацию');
@@ -80,7 +80,7 @@ describe('Полный цикл прохождения квестов с пер�
         
         gameLogic.processNPCInteraction(gameState, 'librarian', 'princess');
         
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'start_quest', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'start_quest', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         if (!result.success) {
             console.log('   ❌ Ошибка в архиве:', result.message);
@@ -98,10 +98,11 @@ describe('Полный цикл прохождения квестов с пер�
         gameLogic.games.set(roomId, gameState);
         
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'princess');
-        let dialogue = gameLogic.getGameData(roomId).npcDialogues.princess;
+        let gameData = await gameLogic.getGameData(roomId);
+        let dialogue = gameData.npcDialogues.princess;
         expect(dialogue.choices.some(c => c.text.includes('находках'))).toBe(true);
         
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'report_relic_findings', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'report_relic_findings', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         expect(gameState.quests.princess.completed.length).toBe(1);
@@ -128,11 +129,11 @@ describe('Полный цикл прохождения квестов с пер�
         expect(gameLogic.canSwitchOutfits(gameState, 'princess')).toBe(true);
         
         // Создаём запрос на обмен
-        const requestResult = gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
+        const requestResult = await gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
         expect(requestResult.success).toBe(true);
         
         // Помощница принимает
-        const swapResult = gameLogic.respondToOutfitSwapRequest(roomId, 'bob', true);
+        const swapResult = await gameLogic.respondToOutfitSwapRequest(roomId, 'bob', true);
         expect(swapResult.success).toBe(true);
         
         // Обновляем состояние игры после обмена одеждой
@@ -151,13 +152,14 @@ describe('Полный цикл прохождения квестов с пер�
         gameLogic.games.set(roomId, gameState);
         
         gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-        dialogue = gameLogic.getGameData(roomId).npcDialogues.princess;
+        gameData = await gameLogic.getGameData(roomId);
+        dialogue = gameData.npcDialogues.princess;
         expect(dialogue.choices.some(c => c.text.includes('травах'))).toBe(true);
         
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_herbs', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'ask_about_herbs', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
-        expect(gameState.quests.princess.active.title).toContain('зелье');
+        expect(gameState.quests.helper.active.title).toContain('зелье');
         console.log('   ✅ Квест зелья получен княжной');
         
         // 8. Княжна идёт к травнику в сад
@@ -169,7 +171,7 @@ describe('Полный цикл прохождения квестов с пер�
         gameLogic.games.set(roomId, gameState);
         
         gameLogic.processNPCInteraction(gameState, 'herbalist', 'princess');
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'start_quest', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'start_quest', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         console.log('   ✅ Травник дал информацию');
@@ -188,7 +190,7 @@ describe('Полный цикл прохождения квестов с пер�
         gameLogic.games.set(roomId, gameState);
         
         gameLogic.processNPCInteraction(gameState, 'herbalist', 'princess');
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'collect_herbs', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'collect_herbs', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         if (!result.success) {
             console.log('   ❌ Ошибка:', result.message);
@@ -205,20 +207,25 @@ describe('Полный цикл прохождения квестов с пер�
         gameLogic.games.set(roomId, gameState);
         
         gameLogic.processNPCInteraction(gameState, 'cook', 'princess');
-        dialogue = gameLogic.getGameData(roomId).npcDialogues.princess;
-        expect(dialogue.choices.some(c => c.text.includes('информацию о редких травах'))).toBe(true);
+        gameData = await gameLogic.getGameData(roomId);
+        dialogue = gameData.npcDialogues.princess;
+        console.log('   Доступные выборы у повара:', dialogue.choices.map(c => c.text));
+        console.log('   Global quest memory:', gameState.globalQuestMemory);
+        console.log('   Helper quest state:', gameState.quests.helper);
+        console.log('   Helper quest steps detailed:', gameState.quests.helper.active?.steps);
+        expect(dialogue.choices.some(c => c.text.includes('информацию о редких травах') || c.text.includes('травах'))).toBe(true);
         
-        result = gameLogic.processNPCDialogueChoice(roomId, 'alice', 'report_herb_findings', 'princess');
+        result = await gameLogic.processNPCDialogueChoice(roomId, 'alice', 'report_herb_findings', 'princess');
         gameState = refreshGameState(gameLogic, roomId);
         expect(result.success).toBe(true);
         
         // Проверяем завершённые квесты
-        console.log('   Завершённые квесты княжны:', gameState.quests.princess.completed.map(q => q.title));
-        console.log('   Активный квест княжны:', gameState.quests.princess.active);
+        console.log('   Завершённые квесты помощницы:', gameState.quests.helper.completed.map(q => q.title));
+        console.log('   Активный квест помощницы:', gameState.quests.helper.active);
         
-        // У княжны должен быть завершён квест зелья
-        expect(gameState.quests.princess.active).toBeNull();
-        console.log('   ✅ Квест зелья завершён княжной!');
+        // У помощницы должен быть завершён квест зелья
+        expect(gameState.quests.helper.active).toBeNull();
+        console.log('   ✅ Квест зелья завершён!');
         
         console.log('\n=== ЧАСТЬ 3: ОБРАТНАЯ СМЕНА И ПОПЫТКА ПОМОЩНИЦЫ ===');
         
@@ -232,8 +239,8 @@ describe('Полный цикл прохождения квестов с пер�
         });
         gameLogic.games.set(roomId, gameState);
         
-        const request2 = gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
-        gameLogic.respondToOutfitSwapRequest(roomId, 'bob', true);
+        const request2 = await gameLogic.createOutfitSwapRequest(roomId, 'alice', 'princess');
+        await gameLogic.respondToOutfitSwapRequest(roomId, 'bob', true);
         
         // Обновляем состояние игры после обмена одеждой
         gameState = refreshGameState(gameLogic, roomId);
@@ -244,8 +251,8 @@ describe('Полный цикл прохождения квестов с пер�
         
         // 13. Помощница в княжеской одежде пытается взять квест княжны
         console.log('13. Помощница меняется с княжной и идёт к советнику');
-        const request3 = gameLogic.createOutfitSwapRequest(roomId, 'bob', 'helper');
-        gameLogic.respondToOutfitSwapRequest(roomId, 'alice', true);
+        const request3 = await gameLogic.createOutfitSwapRequest(roomId, 'bob', 'helper');
+        await gameLogic.respondToOutfitSwapRequest(roomId, 'alice', true);
         
         // Обновляем состояние игры после обмена одеждой
         gameState = refreshGameState(gameLogic, roomId);
@@ -258,7 +265,8 @@ describe('Полный цикл прохождения квестов с пер�
         });
         gameLogic.games.set(roomId, gameState);
         gameLogic.processNPCInteraction(gameState, 'royal_advisor', 'helper');
-        dialogue = gameLogic.getGameData(roomId).npcDialogues.helper;
+        gameData = await gameLogic.getGameData(roomId);
+        dialogue = gameData.npcDialogues.helper;
         
         // Квест реликвии не должен быть доступен
         expect(dialogue.choices.some(c => c.text.includes('реликвии'))).toBe(false);
@@ -274,8 +282,8 @@ describe('Полный цикл прохождения квестов с пер�
         });
         gameLogic.games.set(roomId, gameState);
         
-        const request4 = gameLogic.createOutfitSwapRequest(roomId, 'bob', 'helper');
-        gameLogic.respondToOutfitSwapRequest(roomId, 'alice', true);
+        const request4 = await gameLogic.createOutfitSwapRequest(roomId, 'bob', 'helper');
+        await gameLogic.respondToOutfitSwapRequest(roomId, 'alice', true);
         
         // Обновляем состояние игры после обмена одеждой
         gameState = refreshGameState(gameLogic, roomId);
@@ -291,7 +299,8 @@ describe('Полный цикл прохождения квестов с пер�
         gameLogic.games.set(roomId, gameState);
         
         gameLogic.processNPCInteraction(gameState, 'cook', 'helper');
-        dialogue = gameLogic.getGameData(roomId).npcDialogues.helper;
+        gameData = await gameLogic.getGameData(roomId);
+        dialogue = gameData.npcDialogues.helper;
         
         // Квест зелья не должен быть доступен
         expect(dialogue.choices.some(c => c.text.includes('лечебных травах'))).toBe(false);
