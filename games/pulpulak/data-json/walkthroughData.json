@@ -1,0 +1,860 @@
+{
+  "metadata": {
+    "gameId": "pulpulak",
+    "version": "1.0.0",
+    "description": "Complete walkthrough scenarios for Pulpulak cooperative game",
+    "createdAt": "2025-01-06T00:00:00Z",
+    "estimatedPlayTime": "30-45 minutes"
+  },
+  "walkthroughs": [
+    {
+      "id": "princess_completes_both_quests",
+      "name": "Княжна выполняет оба квеста",
+      "description": "Сценарий где княжна использует смену одежды чтобы выполнить квесты обоих персонажей",
+      "difficulty": "medium",
+      "steps": [
+        {
+          "stepNumber": 1,
+          "description": "Начальная сцена пробуждения - княжна готовится к дню",
+          "character": "princess",
+          "action": {
+            "type": "scene_choice",
+            "target": "coop_awakening",
+            "choice": "prepare_morning"
+          },
+          "preconditions": [
+            {
+              "type": "location",
+              "character": "princess",
+              "value": "princess_chamber",
+              "operator": "equals"
+            }
+          ],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "princess_chamber"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 2,
+          "description": "Княжна идет в тронный зал к советнику",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "throne_room"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "throne_room"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 3,
+          "description": "Княжна получает квест от советника о пропавшей реликвии",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "royal_advisor",
+            "choice": "ask_about_relic"
+          },
+          "preconditions": [
+            {
+              "type": "outfit",
+              "character": "princess",
+              "value": "princess_dress",
+              "operator": "equals"
+            }
+          ],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "quest",
+                "newValue": "princess_lost_relic"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "princess_lost_relic",
+                "stepCompleted": "get_quest",
+                "newStatus": "active"
+              }
+            ],
+            "dialogueUnlocks": ["relic_quest_given"],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 4,
+          "description": "Княжна идет в библиотеку к библиотекарю",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "library"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "library"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 5,
+          "description": "Княжна говорит с библиотекарем о древних реликвиях",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "librarian",
+            "choice": "start_quest"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "dialogue_memory",
+                "newValue": "librarian_consulted"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "princess_lost_relic",
+                "stepCompleted": "search_library",
+                "newStatus": "progressing"
+              }
+            ],
+            "dialogueUnlocks": ["librarian_consulted"],
+            "locationAccess": ["secret_archive"]
+          }
+        },
+        {
+          "stepNumber": 6,
+          "description": "Княжна идет в секретный архив",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "secret_archive"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "secret_archive"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 7,
+          "description": "Княжна получает информацию из архива",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "librarian",
+            "choice": "start_quest"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "dialogue_memory",
+                "newValue": "archive_consulted"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "princess_lost_relic",
+                "stepCompleted": "talk_to_librarian",
+                "newStatus": "ready_to_complete"
+              }
+            ],
+            "dialogueUnlocks": ["archive_consulted"],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 8,
+          "description": "Княжна возвращается к советнику с информацией",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "throne_room"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "throne_room"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 9,
+          "description": "Княжна завершает квест реликвии",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "royal_advisor",
+            "choice": "report_relic_findings"
+          },
+          "preconditions": [
+            {
+              "type": "dialogue_memory",
+              "character": "princess",
+              "value": "has_archive_info",
+              "operator": "equals"
+            }
+          ],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "quest",
+                "newValue": "completed"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "princess_lost_relic",
+                "stepCompleted": "return_to_advisor",
+                "newStatus": "completed"
+              }
+            ],
+            "dialogueUnlocks": ["quest_completed"],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 10,
+          "description": "Княжна возвращается в спальню для смены одежды",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "princess_chamber"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "princess_chamber"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 11,
+          "description": "Княжна меняется одеждой с помощницей",
+          "character": "princess",
+          "action": {
+            "type": "outfit_swap",
+            "target": "helper"
+          },
+          "preconditions": [
+            {
+              "type": "location",
+              "character": "helper",
+              "value": "princess_chamber",
+              "operator": "equals"
+            }
+          ],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "outfit",
+                "newValue": "helper_dress"
+              },
+              {
+                "character": "helper",
+                "property": "outfit",
+                "newValue": "princess_dress"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 12,
+          "description": "Княжна в простой одежде идет к повару",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "kitchen"
+          },
+          "preconditions": [
+            {
+              "type": "outfit",
+              "character": "princess",
+              "value": "helper_dress",
+              "operator": "equals"
+            }
+          ],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "kitchen"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 13,
+          "description": "Княжна получает квест зелья от повара",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "cook",
+            "choice": "ask_about_herbs"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "quest",
+                "newValue": "helper_secret_potion"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "helper_secret_potion",
+                "stepCompleted": "get_quest",
+                "newStatus": "active"
+              }
+            ],
+            "dialogueUnlocks": ["herb_quest_given"],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 14,
+          "description": "Княжна идет в сад к травнику",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "garden"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "garden"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 15,
+          "description": "Княжна говорит с травником о редких травах",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "herbalist",
+            "choice": "start_quest"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "dialogue_memory",
+                "newValue": "quest_started"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "helper_secret_potion",
+                "stepCompleted": "find_herbalist",
+                "newStatus": "progressing"
+              }
+            ],
+            "dialogueUnlocks": ["quest_started"],
+            "locationAccess": ["greenhouse"]
+          }
+        },
+        {
+          "stepNumber": 16,
+          "description": "Княжна идет в теплицу",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "greenhouse"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "greenhouse"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 17,
+          "description": "Княжна собирает редкие травы",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "herbalist",
+            "choice": "collect_herbs"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "items",
+                "newValue": ["rare_herbs"]
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "helper_secret_potion",
+                "stepCompleted": "talk_to_herbalist",
+                "newStatus": "ready_to_complete"
+              }
+            ],
+            "dialogueUnlocks": ["herbs_collected"],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 18,
+          "description": "Княжна возвращается к повару с травами",
+          "character": "princess",
+          "action": {
+            "type": "move",
+            "target": "kitchen"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "location",
+                "newValue": "kitchen"
+              }
+            ],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 19,
+          "description": "Княжна завершает квест зелья",
+          "character": "princess",
+          "action": {
+            "type": "dialogue",
+            "target": "cook",
+            "choice": "report_herb_findings"
+          },
+          "preconditions": [
+            {
+              "type": "item_possession",
+              "character": "princess",
+              "value": "rare_herbs",
+              "operator": "contains"
+            }
+          ],
+          "expectedResult": {
+            "gameStateChanges": [
+              {
+                "character": "princess",
+                "property": "quest",
+                "newValue": "completed"
+              }
+            ],
+            "questProgression": [
+              {
+                "questId": "helper_secret_potion",
+                "stepCompleted": "return_to_cook",
+                "newStatus": "completed"
+              }
+            ],
+            "dialogueUnlocks": ["herb_quest_completed"],
+            "locationAccess": []
+          }
+        }
+      ],
+      "expectedOutcome": {
+        "completedQuests": ["princess_lost_relic", "helper_secret_potion"],
+        "finalCharacterStates": {
+          "princess": {
+            "location": "kitchen",
+            "outfit": "helper_dress",
+            "completedQuests": ["princess_lost_relic", "helper_secret_potion"],
+            "dialogueProgress": {
+              "royal_advisor": {"relic_quest_given": true, "quest_completed": true},
+              "librarian": {"librarian_consulted": true, "archive_consulted": true},
+              "cook": {"herb_quest_given": true, "herb_quest_completed": true},
+              "herbalist": {"quest_started": true, "herbs_collected": true}
+            },
+            "items": ["ancient_amulet", "healing_potion", "royal_gratitude", "herbal_knowledge"]
+          },
+          "helper": {
+            "location": "princess_chamber",
+            "outfit": "princess_dress",
+            "completedQuests": [],
+            "dialogueProgress": {},
+            "items": []
+          }
+        },
+        "gameCompletion": {
+          "isComplete": true,
+          "completionPercentage": 100,
+          "unlockedContent": ["both_quests_completed", "outfit_master_achievement"]
+        }
+      }
+    },
+    {
+      "id": "traditional_coop_play",
+      "name": "Традиционная кооперативная игра",
+      "description": "Каждый персонаж выполняет свой квест без смены ролей",
+      "difficulty": "easy",
+      "steps": [
+        {
+          "stepNumber": 1,
+          "description": "Начальная сцена пробуждения",
+          "character": "princess",
+          "action": {
+            "type": "scene_choice",
+            "target": "coop_awakening",
+            "choice": "prepare_morning"
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "gameStateChanges": [],
+            "questProgression": [],
+            "dialogueUnlocks": [],
+            "locationAccess": []
+          }
+        },
+        {
+          "stepNumber": 2,
+          "description": "Княжна выполняет квест реликвии (шаги 2-9 из предыдущего сценария)",
+          "character": "princess",
+          "action": {
+            "type": "quest",
+            "target": "princess_lost_relic",
+            "parameters": {"fastTrack": true}
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "questProgression": [
+              {
+                "questId": "princess_lost_relic",
+                "stepCompleted": "all",
+                "newStatus": "completed"
+              }
+            ]
+          }
+        },
+        {
+          "stepNumber": 3,
+          "description": "Помощница выполняет квест зелья",
+          "character": "helper",
+          "action": {
+            "type": "quest",
+            "target": "helper_secret_potion",
+            "parameters": {"fastTrack": true}
+          },
+          "preconditions": [],
+          "expectedResult": {
+            "questProgression": [
+              {
+                "questId": "helper_secret_potion",
+                "stepCompleted": "all",
+                "newStatus": "completed"
+              }
+            ]
+          }
+        }
+      ],
+      "expectedOutcome": {
+        "completedQuests": ["princess_lost_relic", "helper_secret_potion"],
+        "finalCharacterStates": {
+          "princess": {
+            "location": "throne_room",
+            "outfit": "princess_dress",
+            "completedQuests": ["princess_lost_relic"],
+            "dialogueProgress": {},
+            "items": ["ancient_amulet", "royal_gratitude"]
+          },
+          "helper": {
+            "location": "kitchen",
+            "outfit": "helper_dress",
+            "completedQuests": ["helper_secret_potion"],
+            "dialogueProgress": {},
+            "items": ["healing_potion", "herbal_knowledge"]
+          }
+        },
+        "gameCompletion": {
+          "isComplete": true,
+          "completionPercentage": 100,
+          "unlockedContent": ["cooperative_completion"]
+        }
+      }
+    }
+  ],
+  "questCompletionPaths": {
+    "princess_lost_relic": {
+      "questId": "princess_lost_relic",
+      "character": "princess",
+      "steps": [
+        {
+          "stepId": "get_quest",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "throne_room"
+            },
+            {
+              "type": "dialogue",
+              "target": "royal_advisor",
+              "choice": "ask_about_relic"
+            }
+          ],
+          "alternatives": [
+            [
+              {
+                "type": "dialogue",
+                "target": "royal_advisor",
+                "choice": "ask_about_kingdom"
+              },
+              {
+                "type": "dialogue",
+                "target": "royal_advisor",
+                "choice": "ask_about_relic"
+              }
+            ]
+          ]
+        },
+        {
+          "stepId": "search_library",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "library"
+            },
+            {
+              "type": "dialogue",
+              "target": "librarian",
+              "choice": "start_quest"
+            }
+          ]
+        },
+        {
+          "stepId": "talk_to_librarian",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "secret_archive"
+            },
+            {
+              "type": "dialogue",
+              "target": "librarian",
+              "choice": "start_quest"
+            }
+          ]
+        },
+        {
+          "stepId": "return_to_advisor",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "throne_room"
+            },
+            {
+              "type": "dialogue",
+              "target": "royal_advisor",
+              "choice": "report_relic_findings"
+            }
+          ]
+        }
+      ],
+      "rewards": ["ancient_amulet", "royal_gratitude"]
+    },
+    "helper_secret_potion": {
+      "questId": "helper_secret_potion",
+      "character": "helper",
+      "steps": [
+        {
+          "stepId": "get_quest",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "kitchen"
+            },
+            {
+              "type": "dialogue",
+              "target": "cook",
+              "choice": "ask_about_herbs"
+            }
+          ]
+        },
+        {
+          "stepId": "find_herbalist",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "garden"
+            },
+            {
+              "type": "dialogue",
+              "target": "herbalist",
+              "choice": "start_quest"
+            }
+          ]
+        },
+        {
+          "stepId": "talk_to_herbalist",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "greenhouse"
+            },
+            {
+              "type": "dialogue",
+              "target": "herbalist",
+              "choice": "collect_herbs"
+            }
+          ]
+        },
+        {
+          "stepId": "return_to_cook",
+          "requiredActions": [
+            {
+              "type": "move",
+              "target": "kitchen"
+            },
+            {
+              "type": "dialogue",
+              "target": "cook",
+              "choice": "report_herb_findings"
+            }
+          ]
+        }
+      ],
+      "rewards": ["healing_potion", "herbal_knowledge"]
+    }
+  },
+  "outfitStrategies": [
+    {
+      "name": "Single Quest Switch",
+      "description": "Обмен одеждой для выполнения одного чужого квеста",
+      "swapSequence": [
+        {
+          "step": 1,
+          "location": "princess_chamber",
+          "purpose": "Enable cross-character quest completion",
+          "characters": {
+            "princess": "helper_dress",
+            "helper": "princess_dress"
+          }
+        },
+        {
+          "step": 2,
+          "location": "princess_chamber",
+          "purpose": "Return to original outfits",
+          "characters": {
+            "princess": "princess_dress",
+            "helper": "helper_dress"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Master Completion",
+      "description": "Один персонаж выполняет все квесты через смену одежды",
+      "swapSequence": [
+        {
+          "step": 1,
+          "location": "princess_chamber",
+          "purpose": "Princess completes helper quest",
+          "characters": {
+            "princess": "helper_dress",
+            "helper": "princess_dress"
+          }
+        }
+      ]
+    }
+  ],
+  "completionCriteria": {
+    "requiredQuests": ["princess_lost_relic", "helper_secret_potion"],
+    "requiredDialogues": [
+      "royal_advisor:ask_about_relic",
+      "librarian:start_quest",
+      "cook:ask_about_herbs",
+      "herbalist:start_quest"
+    ],
+    "requiredLocations": [
+      "princess_chamber",
+      "throne_room", 
+      "library",
+      "secret_archive",
+      "kitchen",
+      "garden",
+      "greenhouse"
+    ]
+  }
+}

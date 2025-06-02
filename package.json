@@ -4,6 +4,8 @@
     "description": "Интерактивная история про княжну Пулпулак",
     "main": "server.js",
     "dependencies": {
+        "ajv": "^8.17.1",
+        "ajv-formats": "^3.0.1",
         "express": "^4.18.2",
         "immer": "^10.1.1",
         "mithril": "^2.3.1",

@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Quest Data Schema",
+  "type": "object",
+  "patternProperties": {
+    "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "character": {
+          "type": "string",
+          "enum": ["princess", "helper"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/questStep"
+          }
+        },
+        "currentStep": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rewards": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["id", "character", "title", "description", "steps", "currentStep", "rewards"],
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "questStep": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "npc": {
+          "type": "string"
+        },
+        "completed": {
+          "type": "boolean"
+        }
+      },
+      "required": ["id", "description", "location", "npc", "completed"],
+      "additionalProperties": false
+    }
+  }
+}

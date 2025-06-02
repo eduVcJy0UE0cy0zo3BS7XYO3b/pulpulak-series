@@ -1,0 +1,70 @@
+{
+  "timestamp": "2025-06-02T11:00:08.530Z",
+  "overallValid": true,
+  "totalErrors": 0,
+  "totalItems": 30,
+  "results": [
+    {
+      "dataType": "stories",
+      "valid": true,
+      "errors": [],
+      "itemCount": 3
+    },
+    {
+      "dataType": "locations",
+      "valid": true,
+      "errors": [],
+      "itemCount": 17
+    },
+    {
+      "dataType": "npcs",
+      "valid": true,
+      "errors": [],
+      "itemCount": 8
+    },
+    {
+      "dataType": "quests",
+      "valid": true,
+      "errors": [],
+      "itemCount": 2
+    },
+    {
+      "dataType": "cross-references",
+      "valid": true,
+      "errors": [],
+      "itemCount": 0
+    }
+  ],
+  "summary": {
+    "stories": {
+      "dataType": "stories",
+      "valid": true,
+      "errors": [],
+      "itemCount": 3
+    },
+    "locations": {
+      "dataType": "locations",
+      "valid": true,
+      "errors": [],
+      "itemCount": 17
+    },
+    "npcs": {
+      "dataType": "npcs",
+      "valid": true,
+      "errors": [],
+      "itemCount": 8
+    },
+    "quests": {
+      "dataType": "quests",
+      "valid": true,
+      "errors": [],
+      "itemCount": 2
+    },
+    "crossReferences": {
+      "dataType": "cross-references",
+      "valid": true,
+      "errors": [],
+      "itemCount": 0
+    }
+  }
+}

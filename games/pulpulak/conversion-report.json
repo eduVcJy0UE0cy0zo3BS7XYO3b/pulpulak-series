@@ -1,0 +1,21 @@
+{
+  "timestamp": "2025-06-02T10:54:18.721Z",
+  "conversionSummary": {
+    "stories": 3,
+    "locations": 17,
+    "npcs": 8,
+    "quests": 2
+  },
+  "files": [
+    "../data-json/storyData.json",
+    "../data-json/locationData.json",
+    "../data-json/npcData.json",
+    "../data-json/questData.json"
+  ],
+  "schemas": [
+    "../schemas/story.schema.json",
+    "../schemas/location.schema.json",
+    "../schemas/npc.schema.json",
+    "../schemas/quest.schema.json"
+  ]
+}

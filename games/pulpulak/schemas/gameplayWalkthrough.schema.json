@@ -1,0 +1,383 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Game Walkthrough Schema",
+  "description": "Schema for complete game walkthrough including all possible paths and outcomes",
+  "type": "object",
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "gameId": {
+          "type": "string",
+          "description": "Identifier of the game"
+        },
+        "version": {
+          "type": "string", 
+          "description": "Version of the walkthrough"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of this walkthrough"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "estimatedPlayTime": {
+          "type": "string",
+          "description": "Estimated time to complete this walkthrough"
+        }
+      },
+      "required": ["gameId", "version", "description"],
+      "additionalProperties": false
+    },
+    "walkthroughs": {
+      "type": "array",
+      "description": "Array of different walkthrough scenarios",
+      "items": {
+        "$ref": "#/definitions/walkthrough"
+      },
+      "minItems": 1
+    },
+    "questCompletionPaths": {
+      "type": "object",
+      "description": "All possible quest completion paths",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "$ref": "#/definitions/questPath"
+        }
+      }
+    },
+    "outfitStrategies": {
+      "type": "array",
+      "description": "Different strategies for outfit swapping",
+      "items": {
+        "$ref": "#/definitions/outfitStrategy"
+      }
+    },
+    "completionCriteria": {
+      "type": "object",
+      "description": "Criteria that define game completion",
+      "properties": {
+        "requiredQuests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredDialogues": {
+          "type": "array", 
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredLocations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["metadata", "walkthroughs", "questCompletionPaths", "completionCriteria"],
+  "additionalProperties": false,
+  "definitions": {
+    "walkthrough": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this walkthrough"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for this walkthrough"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of this walkthrough strategy"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard", "expert"]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/gameStep"
+          },
+          "minItems": 1
+        },
+        "expectedOutcome": {
+          "$ref": "#/definitions/gameOutcome"
+        }
+      },
+      "required": ["id", "name", "description", "difficulty", "steps", "expectedOutcome"],
+      "additionalProperties": false
+    },
+    "gameStep": {
+      "type": "object",
+      "properties": {
+        "stepNumber": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "What happens in this step"
+        },
+        "character": {
+          "type": "string",
+          "enum": ["princess", "helper"],
+          "description": "Which character performs this action"
+        },
+        "action": {
+          "$ref": "#/definitions/gameAction"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "expectedResult": {
+          "$ref": "#/definitions/stepResult"
+        }
+      },
+      "required": ["stepNumber", "description", "character", "action", "expectedResult"],
+      "additionalProperties": false
+    },
+    "gameAction": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["move", "dialogue", "quest", "outfit_swap", "scene_choice"]
+        },
+        "target": {
+          "type": "string",
+          "description": "Target of the action (location, npc, quest, etc.)"
+        },
+        "choice": {
+          "type": "string",
+          "description": "Specific choice made (for dialogues, scene choices)"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Additional parameters for the action"
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["location", "outfit", "quest_status", "dialogue_memory", "item_possession"]
+        },
+        "character": {
+          "type": "string",
+          "enum": ["princess", "helper"]
+        },
+        "value": {
+          "description": "Expected value for this condition"
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["equals", "not_equals", "contains", "completed", "active"]
+        }
+      },
+      "required": ["type", "value"],
+      "additionalProperties": false
+    },
+    "stepResult": {
+      "type": "object",
+      "properties": {
+        "gameStateChanges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/stateChange"
+          }
+        },
+        "questProgression": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "questId": {"type": "string"},
+              "stepCompleted": {"type": "string"},
+              "newStatus": {"type": "string"}
+            }
+          }
+        },
+        "dialogueUnlocks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "locationAccess": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "stateChange": {
+      "type": "object",
+      "properties": {
+        "character": {
+          "type": "string",
+          "enum": ["princess", "helper"]
+        },
+        "property": {
+          "type": "string",
+          "enum": ["location", "outfit", "quest", "dialogue_memory", "items"]
+        },
+        "oldValue": {},
+        "newValue": {}
+      },
+      "required": ["character", "property", "newValue"],
+      "additionalProperties": false
+    },
+    "questPath": {
+      "type": "object",
+      "properties": {
+        "questId": {
+          "type": "string"
+        },
+        "character": {
+          "type": "string",
+          "enum": ["princess", "helper"]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stepId": {"type": "string"},
+              "requiredActions": {
+                "type": "array",
+                "items": {"$ref": "#/definitions/gameAction"}
+              },
+              "alternatives": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {"$ref": "#/definitions/gameAction"}
+                }
+              }
+            },
+            "required": ["stepId", "requiredActions"]
+          }
+        },
+        "rewards": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["questId", "character", "steps"],
+      "additionalProperties": false
+    },
+    "outfitStrategy": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "swapSequence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "step": {"type": "integer"},
+              "location": {"type": "string"},
+              "purpose": {"type": "string"},
+              "characters": {
+                "type": "object",
+                "properties": {
+                  "princess": {"type": "string"},
+                  "helper": {"type": "string"}
+                }
+              }
+            },
+            "required": ["step", "location", "purpose", "characters"]
+          }
+        }
+      },
+      "required": ["name", "description", "swapSequence"],
+      "additionalProperties": false
+    },
+    "gameOutcome": {
+      "type": "object",
+      "properties": {
+        "completedQuests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "finalCharacterStates": {
+          "type": "object",
+          "properties": {
+            "princess": {
+              "$ref": "#/definitions/characterFinalState"
+            },
+            "helper": {
+              "$ref": "#/definitions/characterFinalState"
+            }
+          }
+        },
+        "gameCompletion": {
+          "type": "object",
+          "properties": {
+            "isComplete": {"type": "boolean"},
+            "completionPercentage": {"type": "number", "minimum": 0, "maximum": 100},
+            "unlockedContent": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      },
+      "required": ["completedQuests", "finalCharacterStates", "gameCompletion"],
+      "additionalProperties": false
+    },
+    "characterFinalState": {
+      "type": "object",
+      "properties": {
+        "location": {"type": "string"},
+        "outfit": {"type": "string"},
+        "completedQuests": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "dialogueProgress": {
+          "type": "object",
+          "patternProperties": {
+            ".*": {
+              "type": "object"
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "required": ["location", "outfit", "completedQuests"],
+      "additionalProperties": false
+    }
+  }
+}
