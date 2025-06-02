@@ -3,9 +3,11 @@ const questActionHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isNoble = outfit === 'princess_dress' || outfit === 'court_dress';
         if (isNoble && !gameState.globalQuestMemory.princess_lost_relic) {
-            const questResult = gameLogic.startQuest(gameState, character, 'princess_lost_relic');
+            // Если персонаж в княжеском наряде, работаем с квестом принцессы
+            const questCharacter = 'princess';
+            const questResult = gameLogic.startQuest(gameState, questCharacter, 'princess_lost_relic');
             if (questResult.success && questResult.gameState) {
-                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, character, 'get_quest');
+                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, questCharacter, 'get_quest');
                 return {
                     success: true,
                     gameState: progressResult.gameState || questResult.gameState
@@ -19,9 +21,11 @@ const questActionHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isCommon = outfit === 'common_dress' || outfit === 'nightgown';
         if (isCommon && !gameState.globalQuestMemory.helper_secret_potion) {
-            const questResult = gameLogic.startQuest(gameState, character, 'helper_secret_potion');
+            // Если персонаж в простом наряде, работаем с квестом помощницы
+            const questCharacter = 'helper';
+            const questResult = gameLogic.startQuest(gameState, questCharacter, 'helper_secret_potion');
             if (questResult.success && questResult.gameState) {
-                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, character, 'get_quest');
+                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, questCharacter, 'get_quest');
                 return {
                     success: true,
                     gameState: progressResult.gameState || questResult.gameState
@@ -33,8 +37,12 @@ const questActionHandlers = {
 
     'progress_quest': (gameState, character, gameLogic) => {
         const npcId = gameState.npcDialogues?.[character]?.npcId;
-        if (npcId === 'librarian' && character === 'princess') {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'search_library');
+        const outfit = gameState.stats[character].outfit;
+        const isNoble = outfit === 'princess_dress' || outfit === 'court_dress';
+        if (npcId === 'librarian' && isNoble) {
+            // Если персонаж в княжеском наряде, обновляем квест принцессы
+            const questCharacter = 'princess';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'search_library');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
@@ -45,8 +53,12 @@ const questActionHandlers = {
 
     'progress_herb_quest': (gameState, character, gameLogic) => {
         const npcId = gameState.npcDialogues?.[character]?.npcId;
-        if (npcId === 'herbalist') {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'find_herbalist');
+        const outfit = gameState.stats[character].outfit;
+        const isCommon = outfit === 'common_dress' || outfit === 'nightgown';
+        if (npcId === 'herbalist' && isCommon) {
+            // Если персонаж в простом наряде, обновляем квест помощницы
+            const questCharacter = 'helper';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'find_herbalist');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
@@ -57,8 +69,12 @@ const questActionHandlers = {
 
     'complete_archive_step': (gameState, character, gameLogic) => {
         const npcId = gameState.npcDialogues?.[character]?.npcId;
-        if (npcId === 'librarian' && character === 'princess') {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'talk_to_librarian');
+        const outfit = gameState.stats[character].outfit;
+        const isNoble = outfit === 'princess_dress' || outfit === 'court_dress';
+        if (npcId === 'librarian' && isNoble) {
+            // Если персонаж в княжеском наряде, обновляем квест принцессы
+            const questCharacter = 'princess';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'talk_to_librarian');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
@@ -72,7 +88,9 @@ const questActionHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isNoble = outfit === 'princess_dress' || outfit === 'court_dress';
         if (npcId === 'royal_advisor' && isNoble) {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'return_to_advisor');
+            // Если персонаж в княжеском наряде, обновляем квест принцессы
+            const questCharacter = 'princess';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'return_to_advisor');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
@@ -86,7 +104,9 @@ const questActionHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isCommon = outfit === 'common_dress' || outfit === 'nightgown';
         if (npcId === 'herbalist' && isCommon) {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'talk_to_herbalist');
+            // Если персонаж в простом наряде, обновляем квест помощницы
+            const questCharacter = 'helper';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'talk_to_herbalist');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
@@ -100,7 +120,9 @@ const questActionHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isCommon = outfit === 'common_dress' || outfit === 'nightgown';
         if (npcId === 'cook' && isCommon) {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'return_to_cook');
+            // Если персонаж в простом наряде, обновляем квест помощницы
+            const questCharacter = 'helper';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'return_to_cook');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
@@ -116,9 +138,11 @@ const legacyHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isNoble = outfit === 'princess_dress' || outfit === 'court_dress';
         if (isNoble && !gameState.globalQuestMemory.princess_lost_relic) {
-            const questResult = gameLogic.startQuest(gameState, character, 'princess_lost_relic');
+            // Если персонаж в княжеском наряде, работаем с квестом принцессы
+            const questCharacter = 'princess';
+            const questResult = gameLogic.startQuest(gameState, questCharacter, 'princess_lost_relic');
             if (questResult.success && questResult.gameState) {
-                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, character, 'get_quest');
+                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, questCharacter, 'get_quest');
                 return {
                     success: true,
                     gameState: progressResult.gameState || questResult.gameState
@@ -132,9 +156,11 @@ const legacyHandlers = {
         const outfit = gameState.stats[character].outfit;
         const isCommon = outfit === 'common_dress' || outfit === 'nightgown';
         if (isCommon && !gameState.globalQuestMemory.helper_secret_potion) {
-            const questResult = gameLogic.startQuest(gameState, character, 'helper_secret_potion');
+            // Если персонаж в простом наряде, работаем с квестом помощницы
+            const questCharacter = 'helper';
+            const questResult = gameLogic.startQuest(gameState, questCharacter, 'helper_secret_potion');
             if (questResult.success && questResult.gameState) {
-                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, character, 'get_quest');
+                const progressResult = gameLogic.updateQuestProgress(questResult.gameState, questCharacter, 'get_quest');
                 return {
                     success: true,
                     gameState: progressResult.gameState || questResult.gameState
@@ -151,13 +177,17 @@ const legacyHandlers = {
         const isCommon = outfit === 'common_dress' || outfit === 'nightgown';
         
         if (npcId === 'librarian' && isNoble) {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'talk_to_librarian');
+            // Если персонаж в княжеском наряде, обновляем квест принцессы
+            const questCharacter = 'princess';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'talk_to_librarian');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState
             };
         } else if (npcId === 'herbalist' && isCommon) {
-            const progressResult = gameLogic.updateQuestProgress(gameState, character, 'find_herbalist');
+            // Если персонаж в простом наряде, обновляем квест помощницы
+            const questCharacter = 'helper';
+            const progressResult = gameLogic.updateQuestProgress(gameState, questCharacter, 'find_herbalist');
             return {
                 success: true,
                 gameState: progressResult.gameState || gameState

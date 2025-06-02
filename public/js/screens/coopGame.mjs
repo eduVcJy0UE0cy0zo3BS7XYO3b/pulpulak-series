@@ -77,7 +77,7 @@ const CoopGame = {
     },
 
     determinePlayerRole(data) {
-        if (!data) return null;
+        if (!data || !data.players) return null;
         const socketId = this.app.socketManager.socket.id;
         if (data.players.princess?.id === socketId) {
             return 'princess';
@@ -134,7 +134,9 @@ const CoopGame = {
 
     leaveGame(vnode) {
         const gameData = this.getGameData(vnode);
-        this.app.leaveRoom(gameData.roomId);
+        if (gameData?.roomId) {
+            this.app.leaveRoom(gameData.roomId);
+        }
         this.app.showScreen('mainMenu');
         NotificationManager.add('Вы покинули игру', 'info');
     },
@@ -324,21 +326,8 @@ const CoopGame = {
     },
 
     renderQuestInfo(character, data) {
-        const quest = data.quests && data.quests[character] && data.quests[character].active;
-        
-        if (!quest) {
-            return null;
-        }
-
-        const currentStep = quest.steps[quest.currentStep];
-        
-        return m('.quest-info', { style: 'margin: 10px 0; padding: 10px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; border-left: 3px solid #007bff;' }, [
-            m('.quest-title', { style: 'font-weight: bold; color: #007bff;' }, ['📋 ', quest.title]),
-            m('.quest-description', { style: 'font-size: 0.9em; margin: 5px 0;' }, quest.description),
-            currentStep && m('.quest-current-step', { style: 'font-size: 0.85em; font-style: italic;' }, [
-                '🎯 Текущая задача: ', currentStep.description
-            ])
-        ]);
+        // Quest info is hidden from UI
+        return null;
     },
 
     renderCurrentPlayerPanel(vnode, data) {
@@ -445,6 +434,9 @@ const CoopGame = {
         const gameData = this.getGameData(vnode);
         const playerRole = this.getPlayerRole(vnode);
         
+        // Проверяем что у нас есть необходимые данные
+        if (!gameData || !playerRole) return null;
+        
         // Получаем диалог для текущего игрока
         const dialogue = gameData.npcDialogues && gameData.npcDialogues[playerRole];
         
@@ -486,8 +478,8 @@ const CoopGame = {
         const gameData = this.getGameData(vnode);
         const playerRole = this.getPlayerRole(vnode);
         
-        // Проверяем, что диалог все еще активен и не обрабатывается
-        if (!gameData.npcDialogues[playerRole] || this.dialogueProcessing) {
+        // Проверяем, что у нас есть данные и диалог все еще активен и не обрабатывается
+        if (!gameData || !playerRole || !gameData.npcDialogues?.[playerRole] || this.dialogueProcessing) {
             return;
         }
         
@@ -505,8 +497,8 @@ const CoopGame = {
     respondToNPCDialogue(choiceId, character, vnode) {
         const gameData = this.getGameData(vnode);
         
-        // Проверяем, что диалог все еще активен и не обрабатывается
-        if (!gameData.npcDialogues[character] || this.dialogueProcessing) {
+        // Проверяем, что у нас есть данные и диалог все еще активен и не обрабатывается
+        if (!gameData || !gameData.npcDialogues?.[character] || this.dialogueProcessing) {
             return;
         }
         
@@ -526,7 +518,20 @@ const CoopGame = {
     view(vnode) {
         const gameData = this.getGameData(vnode);
         if (!gameData) {
-            return m('div', 'Загрузка...');
+            return m('div.text-center.p-3', [
+                m('.spinner-border.text-primary', { role: 'status' }),
+                m('p.mt-2', 'Загрузка игры...')
+            ]);
+        }
+
+        // Проверяем что у нас есть минимальные необходимые данные
+        if (!gameData.roomId) {
+            return m('div.text-center.p-3', [
+                m('.alert.alert-warning', 'Неполные данные игры. Попробуйте обновить страницу.'),
+                m('button.btn.btn-primary', {
+                    onclick: () => window.location.reload()
+                }, 'Обновить')
+            ]);
         }
 
         const data = gameData;
