@@ -11,10 +11,11 @@ class QuestProcessor {
      * @param {string} questId - Quest identifier
      * @param {Object} QuestData - Quest data module
      * @param {Object} EffectsProcessor - Effects processor
-     * @param {Object} gameData - Game data manager
+     * @param {Object} immerStateManager - Immer state manager
+     * @param {Object} gameDataManager - Game data manager
      * @returns {Object} Quest start result
      */
-    static startQuest(gameState, character, questId, QuestData, EffectsProcessor, gameData) {
+    static startQuest(gameState, character, questId, QuestData, EffectsProcessor, immerStateManager, gameDataManager) {
         const quest = QuestData.createQuestInstance(questId);
         if (!quest) {
             return { success: false, message: "Квест не найден" };
@@ -24,9 +25,9 @@ class QuestProcessor {
             return { success: false, message: "У вас уже есть активный квест" };
         }
 
-        const updatedState = EffectsProcessor.startQuest(gameData.immerStateManager, gameState, character, quest);
+        const updatedState = EffectsProcessor.startQuest(immerStateManager, gameState, character, quest);
         // Сохраняем обновленное состояние
-        gameData.gameData.games.set(updatedState.roomId, updatedState);
+        gameDataManager.games.set(updatedState.roomId, updatedState);
         
         return { 
             success: true, 
@@ -46,7 +47,7 @@ class QuestProcessor {
      * @param {Function} completeQuestFn - Quest completion function
      * @returns {Object} Quest progress result
      */
-    static updateQuestProgress(gameState, character, stepId, EffectsProcessor, gameData, completeQuestFn) {
+    static updateQuestProgress(gameState, character, stepId, EffectsProcessor, immerStateManager, gameDataManager, completeQuestFn) {
         const activeQuest = gameState.quests[character].active;
         if (!activeQuest) {
             return { success: false, message: "Нет активного квеста" };
@@ -54,9 +55,9 @@ class QuestProcessor {
 
         const currentStep = activeQuest.steps[activeQuest.currentStep];
         if (currentStep && currentStep.id === stepId) {
-            const updatedState = EffectsProcessor.updateQuestProgress(gameData.immerStateManager, gameState, character, stepId);
+            const updatedState = EffectsProcessor.updateQuestProgress(immerStateManager, gameState, character, stepId);
             // Сохраняем обновленное состояние
-            gameData.gameData.games.set(updatedState.roomId, updatedState);
+            gameDataManager.games.set(updatedState.roomId, updatedState);
 
             if (updatedState.quests[character].active.currentStep >= updatedState.quests[character].active.steps.length) {
                 // Квест завершён

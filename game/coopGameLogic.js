@@ -31,7 +31,7 @@ class CoopGameLogic {
         this.requestData = null;
         
         this.stateManager = new GameStateManager();
-        this.immerStateManager = new ImmerStateManager();
+        this._immerStateManager = new ImmerStateManager(); // Private to prevent direct access
     }
     
     async _ensureInitialized() {
@@ -55,6 +55,12 @@ class CoopGameLogic {
         this.playerData = managers.playerData;
         this.questDataManager = managers.questData;
         this.requestData = managers.requestData;
+        
+        // Provide internal access to immerStateManager for internal components
+        this.gameData.immerStateManager = this._immerStateManager;
+        this.playerData.immerStateManager = this._immerStateManager;
+        this.questDataManager.immerStateManager = this._immerStateManager;
+        this.requestData.immerStateManager = this._immerStateManager;
         
         // Register request handlers
         const requestHandlers = this.gameConfig.getRequestHandlers();
@@ -234,7 +240,7 @@ class CoopGameLogic {
     // Apply choice effects
     applyEffects(gameState, effects, character) {
         return EffectsProcessor.applyEffects(
-            this.immerStateManager, 
+            this._immerStateManager, 
             gameState, 
             effects, 
             character, 
@@ -249,7 +255,7 @@ class CoopGameLogic {
 
     // Switch turn order
     switchTurn(gameState) {
-        return ChoiceProcessor.switchTurn(gameState, this.immerStateManager);
+        return ChoiceProcessor.switchTurn(gameState, this._immerStateManager);
     }
 
     // Get game data
@@ -322,6 +328,30 @@ class CoopGameLogic {
         );
     }
 
+    // Move player to a new location (public API for tests and game)
+    async movePlayer(roomId, playerId, targetLocation, character) {
+        await this._ensureInitialized();
+        
+        const validation = this.validateGameState(roomId);
+        if (!validation.valid) {
+            return { success: false, message: validation.error };
+        }
+        
+        const gameState = validation.gameState;
+        const playerValidation = this.validatePlayer(gameState, playerId, character);
+        if (!playerValidation.valid) {
+            return { success: false, message: playerValidation.error };
+        }
+        
+        // Process movement
+        const result = this.processMovement(gameState, targetLocation, character);
+        if (result.success) {
+            return await this.getGameData(roomId);
+        } else {
+            return { success: false, message: result.message || 'Movement failed' };
+        }
+    }
+
     removeGame(roomId) {
         // Only clean up if gameData is initialized
         if (this.gameData) {
@@ -344,7 +374,7 @@ class CoopGameLogic {
             npcId, 
             character, 
             this.npcData, 
-            this.immerStateManager, 
+            this._immerStateManager, 
             this.gameData
         );
     }
@@ -357,7 +387,7 @@ class CoopGameLogic {
             choiceId, 
             character, 
             this.npcData, 
-            this.immerStateManager, 
+            this._immerStateManager, 
             this.gameData, 
             EffectsProcessor, 
             this.processQuestAction.bind(this), 
@@ -371,7 +401,7 @@ class CoopGameLogic {
         return NPCDialogueProcessor.closeNPCDialogue(
             roomId, 
             playerId, 
-            this.immerStateManager, 
+            this._immerStateManager, 
             this.gameData
         );
     }
@@ -386,7 +416,8 @@ class CoopGameLogic {
             questId, 
             this.questData, 
             EffectsProcessor, 
-            this
+            this._immerStateManager,
+            this.gameData
         );
     }
 
@@ -397,7 +428,8 @@ class CoopGameLogic {
             character, 
             stepId, 
             EffectsProcessor, 
-            this, 
+            this._immerStateManager,
+            this.gameData,
             this.completeQuest.bind(this)
         );
     }
@@ -448,15 +480,27 @@ class CoopGameLogic {
         );
     }
 
+    // Read-only access to immerStateManager for legacy tests
+    get immerStateManager() {
+        console.warn('⚠️  Direct access to immerStateManager is deprecated.');
+        console.warn('   Use public APIs like movePlayer(), makeChoice(), etc.');
+        return null; // Return null to break tests that rely on direct manipulation
+    }
+
     // === TESTING METHODS (backward compatibility) ===
     
-    // Simulate old gameLogic.games for tests
+    // Simulate old gameLogic.games for tests (READ-ONLY to prevent cheating)
     get games() {
         return {
             get: (roomId) => this.gameData.getGame(roomId),
             set: (roomId, gameState) => {
-                // For backward compatibility - just replace object in Map
-                this.gameData.games.set(roomId, gameState);
+                // DEPRECATED: Direct state manipulation is not allowed
+                // Use public APIs like movePlayer(), makeChoice(), etc.
+                console.warn('⚠️  games.set() is deprecated and disabled. Use public APIs instead.');
+                console.warn('   Use gameLogic.movePlayer() for movement');
+                console.warn('   Use gameLogic.makeChoice() for choices');
+                console.warn('   Use gameLogic.createOutfitSwapRequest() for outfit changes');
+                return false;
             },
             has: (roomId) => this.gameData.hasGame(roomId),
             delete: (roomId) => this.gameData.deleteGame(roomId)
