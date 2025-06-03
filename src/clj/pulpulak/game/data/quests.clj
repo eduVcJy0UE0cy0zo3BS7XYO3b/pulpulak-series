@@ -131,7 +131,7 @@
              :completed false}]
     :current-step 0
     :rewards [:secret-passage-key :guard-trust]
-    :status :not-started}}
+    :status :not-started}})
 
 (def quest-actions
   {:start-noble-quest

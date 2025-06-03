@@ -1,7 +1,8 @@
 (ns pulpulak.game.event-store-pure
   "Pure functional event store implementation"
   (:require [pulpulak.game.events :as events]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [com.stuartsierra.component :as component]))
 
 ;; Event store state
 (defn empty-event-store

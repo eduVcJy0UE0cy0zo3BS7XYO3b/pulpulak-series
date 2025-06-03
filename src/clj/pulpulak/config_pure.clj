@@ -51,9 +51,9 @@
   "Pure function to normalize configuration structure"
   [config]
   (transform-config config
-    [[:server :port] #(or % 3000)
-     [:game :max-players-per-room] #(or % 2)
-     [:logging :level] #(or % :info)]))
+    [[[:server :port] #(or % 3000)]
+     [[:game :max-players-per-room] #(or % 2)]
+     [[:logging :level] #(or % :info)]]))
 
 ;; Configuration component that caches loaded config
 (defrecord ConfigComponent [config env-name]

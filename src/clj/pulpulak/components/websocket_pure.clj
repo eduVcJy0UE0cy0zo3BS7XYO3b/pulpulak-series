@@ -97,6 +97,9 @@
        (map first)
        vec))
 
+;; Forward declaration
+(declare process-message-with-effects)
+
 ;; WebSocket server with pure core
 (defrecord PureWebSocketServer [config game-engine socket router player-rooms]
   component/Lifecycle

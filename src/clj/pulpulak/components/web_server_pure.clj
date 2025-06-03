@@ -145,7 +145,8 @@
           registry-atom (atom (registry/empty-registry))
           app (-> (create-pure-app websocket registry-atom)
                   (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false)))
-          server (http-kit/run-server app {:port (:port config)
+          port (or (:port config) 3000)
+          server (http-kit/run-server app {:port port
                                            :thread 8})]
       ;; Process startup logs
       (logging/process-log-events logs)

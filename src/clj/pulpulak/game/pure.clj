@@ -23,24 +23,13 @@
    :quests {}
    :npc-states {}})
 
-(defn can-perform-action?
-  "Checks if a player can perform an action"
-  [game-state player-id action-type action-data]
-  (let [player (get-in game-state [:players player-id])]
-    (case action-type
-      :move (can-move? game-state player (:location action-data))
-      :swap-outfit (can-swap-outfit? game-state player)
-      :talk-to-npc (can-talk-to-npc? game-state player (:npc-id action-data))
-      :use-item (has-item? game-state player (:item-id action-data))
-      false)))
-
 (defn can-move?
   "Pure function to check if movement is valid"
   [game-state player target-location]
   (let [current-location (:location player)
         connections (locations/get-connections current-location)
         discovered? (or (not (locations/is-hidden? target-location))
-                        (contains? (get-in game-state [:shared-state :discovered-locations]) 
+                        (contains? (get-in game-state [:shared-state :discovered-locations])
                                    target-location))]
     (and (some #{target-location} connections)
          discovered?)))
@@ -49,7 +38,7 @@
   "Pure function to check if outfit swap is allowed"
   [game-state player]
   (let [location (locations/get-location (:location player))
-        other-players (remove #(= (:player-id %) (:player-id player)) 
+        other-players (remove #(= (:player-id %) (:player-id player))
                               (vals (:players game-state)))]
     (and (= :princess (:role player))
          (:can-change-outfit location)
@@ -64,8 +53,19 @@
 (defn has-item?
   "Checks if player has an item"
   [game-state player item-id]
-  (contains? (get-in game-state [:player-states (:player-id player) :inventory] #{}) 
+  (contains? (get-in game-state [:player-states (:player-id player) :inventory] #{})
              item-id))
+
+(defn can-perform-action?
+  "Checks if a player can perform an action"
+  [game-state player-id action-type action-data]
+  (let [player (get-in game-state [:players player-id])]
+    (case action-type
+      :move (can-move? game-state player (:location action-data))
+      :swap-outfit (can-swap-outfit? game-state player)
+      :talk-to-npc (can-talk-to-npc? game-state player (:npc-id action-data))
+      :use-item (has-item? game-state player (:item-id action-data))
+      false)))
 
 (defn apply-move
   "Applies movement to game state"
@@ -93,6 +93,26 @@
       (and (= :princess (:role player)) (npcs/likes-noble? npc-id))
       (update-in [:princess-state :loyalty npc-id] (fnil + 0) 5))))
 
+(defn get-available-actions
+  "Gets all actions available to a player in current state"
+  [game-state player]
+  (cond-> []
+    (can-swap-outfit? game-state player)
+    (conj {:type :swap-outfit :label "Change outfit"})
+
+    (seq (npcs/get-npcs-at-location (:location player)))
+    (conj {:type :talk-to-npc :label "Talk to someone"})
+
+    true
+    (conj {:type :move :label "Go somewhere else"})))
+
+(defn get-player-quests
+  "Gets quest information for a player"
+  [game-state player-id]
+  (let [player-quests (get-in game-state [:quests player-id] {})]
+    {:active (filter #(= :active (:status (val %))) player-quests)
+     :completed (filter #(= :completed (:status (val %))) player-quests)}))
+
 (defn create-player-view
   "Creates a view of the game state for a specific player"
   [game-state player-id]
@@ -110,23 +130,3 @@
                                      (:connections location))}
      :available-actions (get-available-actions game-state player)
      :quests (get-player-quests game-state player-id)}))
-
-(defn get-available-actions
-  "Gets all actions available to a player in current state"
-  [game-state player]
-  (cond-> []
-    (can-swap-outfit? game-state player)
-    (conj {:type :swap-outfit :label "Change outfit"})
-    
-    (seq (npcs/get-npcs-at-location (:location player)))
-    (conj {:type :talk-to-npc :label "Talk to someone"})
-    
-    true
-    (conj {:type :move :label "Go somewhere else"})))
-
-(defn get-player-quests
-  "Gets quest information for a player"
-  [game-state player-id]
-  (let [player-quests (get-in game-state [:quests player-id] {})]
-    {:active (filter #(= :active (:status (val %))) player-quests)
-     :completed (filter #(= :completed (:status (val %))) player-quests)}))
