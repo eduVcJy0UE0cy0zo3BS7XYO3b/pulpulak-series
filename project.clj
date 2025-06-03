@@ -28,7 +28,6 @@
                  [com.taoensso/timbre "6.3.1"] ; Logging
                  [com.stuartsierra/component "1.1.0"] ; Component system
                  [cprop "0.1.19"] ; Configuration
-                 [clojure.core.memoize "1.0.257"] ; Memoization
                  ]
   
   :source-paths ["src/clj" "src/cljc"]

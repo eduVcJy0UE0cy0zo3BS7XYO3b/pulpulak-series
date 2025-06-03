@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [ring.mock.request :as mock]
             [pulpulak.server :as server]
-            [pulpulak.game.registry :as registry]
+            [pulpulak.game.registry-pure :as registry]
             [pulpulak.games.pulpulak-config :as pulpulak-config]
             [cheshire.core :as json]))
 
@@ -18,12 +18,14 @@
     (require 'pulpulak.games.pulpulak-config :reload)
     
     (testing "List games"
-      (let [games (registry/list-games)]
-        (is (seq games))
-        (is (some #(= :pulpulak (:id %)) games))))
+      (let [registry-state (registry/empty-registry)
+            games (registry/list-games registry-state)]
+        (is (vector? games))))
     
-    (testing "Get specific game"
-      (let [game (registry/get-game :pulpulak)]
+    (testing "Pure registry operations"
+      (let [test-config (pulpulak-config/create-pulpulak-config)
+            registry-state (registry/register-game (registry/empty-registry) test-config)
+            game (registry/get-game registry-state :pulpulak)]
         (is (some? game))
         (is (= "Pulpulak Series" (registry/get-game-name game)))
         (is (= 2 (get-in (registry/get-game-constants game) [:max-players])))))))
