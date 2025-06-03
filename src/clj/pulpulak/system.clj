@@ -1,41 +1,41 @@
 (ns pulpulak.system
   (:require [com.stuartsierra.component :as component]
-            [taoensso.timbre :as log]
-            [pulpulak.components.web-server :as web-server]
-            [pulpulak.components.websocket :as websocket]
+            [pulpulak.components.web-server-pure :as web-server]
+            [pulpulak.components.websocket-pure :as websocket]
             [pulpulak.components.game-engine :as game-engine]
-            [pulpulak.components.database :as database]
-            [pulpulak.config :as config]))
+            [pulpulak.components.database-pure :as database]
+            [pulpulak.config-pure :as config]
+            [pulpulak.utils.logging-pure :as logging]))
 
 (defn new-system
   "Creates a new system with all components"
-  [config]
+  [config-data]
   (component/system-map
-   :config config
+   :config (config/new-config-component "development")
    
-   :database (database/new-database (:database config))
+   :database (database/new-pure-database (:database config-data))
    
    :game-engine (component/using
                  (game-engine/new-game-engine)
                  [:database :config])
    
    :websocket (component/using
-               (websocket/new-websocket-server (:websocket config))
+               (websocket/new-pure-websocket-server (:websocket config-data))
                [:game-engine])
    
    :web-server (component/using
-                (web-server/new-web-server (:server config))
+                (web-server/new-pure-web-server (:server config-data))
                 [:websocket :config])))
 
 (defn start-system!
   "Starts the system with the given configuration"
   [config]
   (let [system (new-system config)]
-    (log/info "Starting Pulpulak system...")
+    (logging/process-log-events [(logging/log-info "Starting Pulpulak system...")])
     (component/start system)))
 
 (defn stop-system!
   "Stops the given system"
   [system]
-  (log/info "Stopping Pulpulak system...")
+  (logging/process-log-events [(logging/log-info "Stopping Pulpulak system...")])
   (component/stop system))
