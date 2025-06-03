@@ -1,6 +1,6 @@
 (ns pulpulak.game.registry-pure
   "Pure functional game registry - no side effects"
-  (:require [taoensso.timbre :as log]))
+  (:require [pulpulak.utils.logging-pure :as logging]))
 
 (defprotocol GameConfig
   "Protocol for game configurations"

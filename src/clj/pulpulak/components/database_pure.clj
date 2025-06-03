@@ -2,7 +2,7 @@
   "Pure functional database operations without side effects"
   (:require [com.stuartsierra.component :as component]
             [clojure.spec.alpha :as s]
-            [taoensso.timbre :as log]))
+            [pulpulak.utils.logging-pure :as logging]))
 
 ;; Database state operations (pure functions)
 (defn empty-db-state
@@ -74,11 +74,11 @@
   component/Lifecycle
   
   (start [this]
-    (log/info "Starting pure database component")
+    (logging/process-log-events [(logging/log-info "Starting pure database component")])
     (assoc this :state-atom (atom (empty-db-state))))
   
   (stop [this]
-    (log/info "Stopping pure database component")
+    (logging/process-log-events [(logging/log-info "Stopping pure database component")])
     (dissoc this :state-atom))
   
   PureDatabase
