@@ -1,5 +1,5 @@
 (ns pulpulak.games.pulpulak-config
-  (:require [pulpulak.game.registry :as registry]
+  (:require [pulpulak.game.registry-pure :as registry]
             [pulpulak.game.data.locations :as locations]
             [pulpulak.game.data.npcs :as npcs]
             [pulpulak.game.data.quests :as quests]
@@ -43,9 +43,8 @@
     ;; Any async initialization if needed
     this))
 
-(defn create-config []
+(defn create-pulpulak-config []
   (PulpulakGameConfig.))
 
-;; Auto-register on namespace load
-(def config (create-config))
-(registry/register-game! config)
+;; For pure functional use - no auto-registration
+(def config (create-pulpulak-config))

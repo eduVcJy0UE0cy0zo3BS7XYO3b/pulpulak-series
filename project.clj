@@ -6,35 +6,35 @@
   
   :min-lein-version "2.9.0"
   
-  :dependencies [[org.clojure/clojure "1.11.1"]
-                 [org.clojure/clojurescript "1.11.60"]
-                 [org.clojure/core.async "1.6.673"]
+  :dependencies [[org.clojure/clojure "1.12.0"]
+                 [org.clojure/clojurescript "1.11.132"]
+                 [org.clojure/core.async "1.6.681"]
                  
                  ;; Backend dependencies
-                 [ring/ring-core "1.10.0"]
-                 [ring/ring-defaults "0.3.4"]
-                 [ring/ring-json "0.5.1"]
-                 [compojure "1.7.0"]
-                 [http-kit "2.7.0"]
+                 [ring/ring-core "1.12.2"]
+                 [ring/ring-defaults "0.5.0"]
+                 [compojure "1.7.1"]
+                 [http-kit "2.8.0"]
                  
                  ;; WebSocket support
-                 [com.taoensso/sente "1.17.0"]
+                 [com.taoensso/sente "1.19.2"]
                  
                  ;; Frontend dependencies
                  [reagent "1.2.0"]
-                 [re-frame "1.3.0"]
+                 [re-frame "1.4.3"]
                  
                  ;; Utility libraries
-                 [com.taoensso/timbre "6.3.1"] ; Logging
+                 [com.taoensso/timbre "6.5.0"] ; Logging
                  [com.stuartsierra/component "1.1.0"] ; Component system
-                 [cprop "0.1.19"] ; Configuration
+                 [cprop "0.1.20"] ; Configuration
                  ]
   
   :source-paths ["src/clj" "src/cljc"]
   
   :profiles
-  {:dev {:dependencies [[binaryage/devtools "1.0.6"]
-                        [cider/piggieback "0.5.3"]]
+  {:dev {:dependencies [[binaryage/devtools "1.0.7"]
+                        [cider/piggieback "0.5.3"]
+                        [ring/ring-mock "0.4.0"]]
          :source-paths ["dev"]
          :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}
          :plugins [[lein-figwheel "0.5.20"]

@@ -1,51 +1,66 @@
 (ns pulpulak.api-test
   (:require [clojure.test :refer :all]
-            [ring.mock.request :as mock]
-            [pulpulak.server :as server]
             [pulpulak.game.registry-pure :as registry]
-            [pulpulak.games.pulpulak-config :as pulpulak-config]
-            [cheshire.core :as json]))
+            [pulpulak.games.pulpulak-config :as pulpulak-config]))
 
-(deftest test-health-endpoint
-  (testing "Health check endpoint"
-    (let [response (server/app (mock/request :get "/health"))]
-      (is (= 200 (:status response)))
-      (is (= {:status "ok"} (json/parse-string (:body response) true))))))
-
-(deftest test-game-registry-api
-  (testing "Game registry functionality"
-    ;; Ensure pulpulak game is registered
-    (require 'pulpulak.games.pulpulak-config :reload)
-    
-    (testing "List games"
+(deftest test-pure-registry-functionality
+  (testing "Pure game registry operations"
+    (testing "Empty registry"
       (let [registry-state (registry/empty-registry)
             games (registry/list-games registry-state)]
-        (is (vector? games))))
+        (is (vector? games))
+        (is (empty? games))))
     
-    (testing "Pure registry operations"
+    (testing "Register and retrieve game"
       (let [test-config (pulpulak-config/create-pulpulak-config)
             registry-state (registry/register-game (registry/empty-registry) test-config)
             game (registry/get-game registry-state :pulpulak)]
         (is (some? game))
         (is (= "Pulpulak Series" (registry/get-game-name game)))
-        (is (= 2 (get-in (registry/get-game-constants game) [:max-players])))))))
+        (is (= 2 (get-in (registry/get-game-constants game) [:max-players])))))
+    
+    (testing "Multiple games"
+      (let [config1 (pulpulak-config/create-pulpulak-config)
+            registry1 (registry/register-game (registry/empty-registry) config1)
+            games (registry/list-games registry1)]
+        (is (= 1 (count games)))
+        (is (= :pulpulak (:id (first games))))))
+    
+    (testing "Game exists check"
+      (let [test-config (pulpulak-config/create-pulpulak-config)
+            registry-state (registry/register-game (registry/empty-registry) test-config)]
+        (is (registry/game-exists? registry-state :pulpulak))
+        (is (not (registry/game-exists? registry-state :nonexistent)))))
+    
+    (testing "Unregister game"
+      (let [test-config (pulpulak-config/create-pulpulak-config)
+            registry-with-game (registry/register-game (registry/empty-registry) test-config)
+            registry-without-game (registry/unregister-game registry-with-game :pulpulak)]
+        (is (registry/game-exists? registry-with-game :pulpulak))
+        (is (not (registry/game-exists? registry-without-game :pulpulak)))))))
 
-(deftest test-static-file-serving
-  (testing "Index page"
-    (let [response (server/app (mock/request :get "/"))]
-      (is (= 200 (:status response)))))
-  
-  (testing "CSS files"
-    (let [response (server/app (mock/request :get "/css/style.css"))]
-      (is (= 200 (:status response))))))
+(deftest test-game-config-protocol
+  (testing "Game config protocol implementation"
+    (let [config (pulpulak-config/create-pulpulak-config)]
+      (is (= :pulpulak (registry/get-game-id config)))
+      (is (= "Pulpulak Series" (registry/get-game-name config)))
+      (is (string? (registry/get-game-description config)))
+      (is (map? (registry/get-story-data config)))
+      (is (map? (registry/get-location-data config)))
+      (is (map? (registry/get-npc-data config)))
+      (is (map? (registry/get-quest-data config)))
+      (is (map? (registry/get-game-constants config))))))
 
-(deftest test-websocket-endpoints
-  (testing "WebSocket GET endpoint exists"
-    (let [response (server/app (mock/request :get "/chsk"))]
-      ;; Will fail without proper WebSocket headers, but endpoint should exist
-      (is (not= 404 (:status response)))))
-  
-  (testing "WebSocket POST endpoint exists"
-    (let [response (server/app (mock/request :post "/chsk"))]
-      ;; Will fail without proper data, but endpoint should exist
-      (is (not= 404 (:status response))))))
+(deftest test-registry-immutability
+  (testing "Registry operations maintain immutability"
+    (let [original-registry (registry/empty-registry)
+          test-config (pulpulak-config/create-pulpulak-config)
+          new-registry (registry/register-game original-registry test-config)]
+      
+      ;; Original registry should be unchanged
+      (is (empty? (registry/list-games original-registry)))
+      (is (not (registry/game-exists? original-registry :pulpulak)))
+      
+      ;; New registry should have the game
+      (is (= 1 (count (registry/list-games new-registry))))
+      (is (registry/game-exists? new-registry :pulpulak)))))

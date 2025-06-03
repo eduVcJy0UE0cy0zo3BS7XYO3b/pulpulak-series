@@ -5,7 +5,6 @@
             [compojure.core :refer [defroutes GET POST]]
             [compojure.route :as route]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
-            [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.util.response :as response]
             [pulpulak.utils.logging-pure :as logging]
             [pulpulak.game.registry-pure :as registry]))
@@ -145,9 +144,7 @@
     (let [logs [(logging/log-info "Starting web server on port" (:port config))]
           registry-atom (atom (registry/empty-registry))
           app (-> (create-pure-app websocket registry-atom)
-                  (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
-                  wrap-json-response
-                  (wrap-json-body {:keywords? true}))
+                  (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false)))
           server (http-kit/run-server app {:port (:port config)
                                            :thread 8})]
       ;; Process startup logs
