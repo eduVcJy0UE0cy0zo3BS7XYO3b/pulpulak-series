@@ -1,0 +1,27 @@
+{:default {:server {:port 3000
+                    :thread-pool-size 8}
+           :websocket {:timeout 60000
+                       :heartbeat-interval 30000}
+           :database {:type :in-memory}
+           :game {:max-players-per-room 2
+                  :room-timeout 3600000
+                  :auto-save-interval 60000}
+           :logging {:level :info
+                     :file "logs/pulpulak.log"}}
+ 
+ :development {:server {:port 3000}
+               :logging {:level :debug}
+               :game {:room-timeout 86400000}}
+ 
+ :test {:server {:port 3001}
+        :logging {:level :warn
+                  :file "logs/test.log"}
+        :database {:type :in-memory}}
+ 
+ :production {:server {:port #env PORT
+                       :thread-pool-size 16}
+              :websocket {:timeout 120000}
+              :logging {:level :error
+                        :file "logs/production.log"}
+              :database {:type :postgresql
+                         :connection-uri #env DATABASE_URL}}}

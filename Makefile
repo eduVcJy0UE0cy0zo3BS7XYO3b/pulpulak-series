@@ -1,20 +1,66 @@
-# Makefile for pulpulak_series deployment
+# Makefile for Pulpulak Series Clojure/ClojureScript
 
+.PHONY: help dev dev-backend dev-frontend build clean test repl deps
+
+help:
+	@echo "Available commands:"
+	@echo "  make dev          - Start both backend and frontend development servers"
+	@echo "  make dev-backend  - Start only the backend server"
+	@echo "  make dev-frontend - Start only the frontend (Figwheel)"
+	@echo "  make build        - Create production build"
+	@echo "  make clean        - Clean build artifacts"
+	@echo "  make test         - Run all tests"
+	@echo "  make repl         - Start a Clojure REPL"
+	@echo "  make deps         - Install dependencies"
+
+deps:
+	lein deps
+
+dev-backend:
+	@echo "Starting backend server..."
+	@echo "Run (start) in the REPL to start the server"
+	lein repl
+
+dev-frontend:
+	@echo "Starting Figwheel..."
+	lein figwheel
+
+dev:
+	@echo "Starting full development environment..."
+	@echo "This requires two terminals:"
+	@echo "Terminal 1: make dev-backend"
+	@echo "Terminal 2: make dev-frontend"
+	@make -j2 dev-backend dev-frontend
+
+build:
+	@echo "Creating production build..."
+	lein clean
+	lein uberjar
+	@echo "Build complete! Run with: java -jar target/pulpulak-standalone.jar"
+
+clean:
+	lein clean
+	rm -rf resources/public/js/compiled
+	rm -rf target
+
+test:
+	@echo "Running Clojure tests..."
+	lein test
+	@echo "Running ClojureScript tests..."
+	lein doo phantom test once
+
+repl:
+	lein repl
+
+run-prod:
+	java -jar target/pulpulak-standalone.jar
+
+# Legacy JavaScript deployment targets (kept for reference)
 # Configuration
 REMOTE_HOST = aladdin@103.13.211.36
 REMOTE_PATH = /home/aladdin/pulpulak_series
 ARCHIVE_NAME = pulpulak_series.tar.gz
 LOCAL_ARCHIVE = ./$(ARCHIVE_NAME)
-
-# Default target
-.PHONY: help
-help:
-	@echo "Available targets:"
-	@echo "  dist     - Create archive, deploy to remote server and start app"
-	@echo "  archive  - Create gzipped archive of the repository"
-	@echo "  deploy   - Send archive to remote server"
-	@echo "  start    - Start the application on remote server"
-	@echo "  clean    - Remove local archive"
 
 # Create gzipped archive of the repository
 .PHONY: archive
