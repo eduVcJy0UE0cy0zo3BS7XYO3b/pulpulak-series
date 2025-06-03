@@ -49,7 +49,10 @@
   [operation-name]
   (fn [result duration]
     (log-info (str "Completed " operation-name) 
-              {:duration-ms duration :success (not (contains? result :error))})))
+              {:duration-ms duration 
+               :success (if (map? result) 
+                         (not (contains? result :error))
+                         true)})))
 
 ;; Log event processing
 (defn process-log-events

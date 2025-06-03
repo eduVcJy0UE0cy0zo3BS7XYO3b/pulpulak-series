@@ -39,11 +39,11 @@
 (defn list-games
   "Pure function to list all games in registry"
   [registry]
-  (map (fn [[id config]]
-         {:id id
-          :name (get-game-name config)
-          :description (get-game-description config)})
-       registry))
+  (vec (map (fn [[id config]]
+              {:id id
+               :name (get-game-name config)
+               :description (get-game-description config)})
+            registry)))
 
 (defn game-exists?
   "Pure function to check if game exists in registry"
