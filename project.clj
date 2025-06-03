@@ -24,7 +24,8 @@
                  [re-frame "1.4.3"]
                  
                  ;; Utility libraries
-                 [com.taoensso/timbre "6.5.0"] ; Logging
+                 [org.clojure/tools.logging "1.3.0"] ; Logging
+                 [ch.qos.logback/logback-classic "1.4.14"] ; Logging implementation
                  [com.stuartsierra/component "1.1.0"] ; Component system
                  [cprop "0.1.20"] ; Configuration
                  ]

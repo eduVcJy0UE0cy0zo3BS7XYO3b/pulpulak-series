@@ -197,3 +197,27 @@
               :objective (:description current-step)
               :location (:location current-step)}))
          active-quests)))
+
+;; Quest progression helpers
+(defn advance-quest-step [game-state player-id quest-id]
+  "Advance quest to next step"
+  (let [quest (get-quest quest-id)
+        current-step (get-in game-state [:quests player-id quest-id :current-step] 0)
+        next-step (inc current-step)
+        quest-complete? (>= next-step (count (:steps quest)))]
+    (-> game-state
+        (assoc-in [:quests player-id quest-id :current-step] next-step)
+        (assoc-in [:quests player-id quest-id :status] 
+                  (if quest-complete? :completed :active)))))
+
+(defn start-quest [game-state player-id quest-id]
+  "Start a quest for a player"
+  (if (is-quest-available? quest-id game-state player-id)
+    (-> game-state
+        (assoc-in [:quests player-id quest-id :status] :active)
+        (update-in [:player-states player-id :active-quests] #(conj (or % []) quest-id)))
+    game-state))
+
+(defn get-quest-rewards [quest-id]
+  "Get rewards for completing a quest"
+  (:rewards (get-quest quest-id)))

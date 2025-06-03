@@ -1,6 +1,6 @@
 (ns pulpulak.utils.logging-pure
   "Pure functional logging that returns log events instead of side effects"
-  (:require [taoensso.timbre :as timbre]))
+  (:require [clojure.tools.logging :as log]))
 
 ;; Log event data structure
 (defrecord LogEvent [level message data timestamp])
@@ -56,11 +56,12 @@
   "Processes log events by actually logging them (side effect boundary)"
   [log-events]
   (doseq [event log-events]
-    (case (:level event)
-      :info (timbre/info (:message event) (:data event))
-      :debug (timbre/debug (:message event) (:data event))
-      :warn (timbre/warn (:message event) (:data event))
-      :error (timbre/error (:message event) (:data event)))))
+    (let [msg (str (:message event) (when (:data event) (str " " (:data event))))]
+      (case (:level event)
+        :info (log/info msg)
+        :debug (log/debug msg)
+        :warn (log/warn msg)
+        :error (log/error msg)))))
 
 ;; Functional logging monad-like structure
 (defn log-return
